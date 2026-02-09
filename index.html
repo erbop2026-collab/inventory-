@@ -34,37 +34,67 @@
       -webkit-user-select: none;
       user-select: none;
     }
-    /* PWA install prompt banner */
-    .install-banner {
-      position: fixed; bottom: 0; left: 0; right: 0; z-index: 9999;
+    /* PWA install overlay */
+    .install-overlay {
+      position: fixed; inset: 0; z-index: 99999;
+      background: rgba(0,0,0,0.85);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'DM Sans', sans-serif;
+      backdrop-filter: blur(10px);
+      animation: fadeIn 0.3s ease;
+    }
+    .install-overlay.hidden { display: none !important; }
+    .install-card {
       background: linear-gradient(135deg, #161b22, #1a2332);
-      border-top: 1px solid rgba(88, 166, 255, 0.3);
-      padding: 16px 20px;
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 12px;
-      font-family: 'DM Sans', sans-serif;
-      animation: slideUp 0.4s ease;
-      backdrop-filter: blur(20px);
+      border: 1px solid rgba(88, 166, 255, 0.3);
+      border-radius: 24px;
+      padding: 40px 32px;
+      max-width: 360px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.6);
     }
-    .install-banner.hidden { display: none; }
-    .install-btn {
+    .install-icon {
+      width: 80px; height: 80px; border-radius: 20px;
+      margin: 0 auto 20px;
+    }
+    .install-title {
+      color: #e6edf3; font-size: 22px; font-weight: 800;
+      margin-bottom: 8px;
+    }
+    .install-desc {
+      color: #8b949e; font-size: 14px; line-height: 1.6;
+      margin-bottom: 28px;
+    }
+    .install-btn-big {
       background: linear-gradient(135deg, #238636, #2ea043);
-      color: #fff; border: none; border-radius: 12px;
-      padding: 10px 20px; font-size: 14px; font-weight: 700;
-      cursor: pointer; white-space: nowrap;
+      color: #fff; border: none; border-radius: 16px;
+      padding: 16px 32px; font-size: 18px; font-weight: 700;
+      cursor: pointer; width: 100%;
+      font-family: 'DM Sans', sans-serif;
+      margin-bottom: 12px;
+      box-shadow: 0 4px 20px rgba(35, 134, 54, 0.4);
+      transition: transform 0.2s;
+    }
+    .install-btn-big:active { transform: scale(0.97); }
+    .install-skip {
+      background: none; border: 1px solid rgba(255,255,255,0.1);
+      color: #8b949e; border-radius: 12px;
+      padding: 12px 24px; font-size: 14px;
+      cursor: pointer; width: 100%;
       font-family: 'DM Sans', sans-serif;
     }
-    .install-dismiss {
-      background: none; border: none; color: #8b949e;
-      font-size: 20px; cursor: pointer; padding: 4px 8px;
+    .install-step {
+      color: #58a6ff; font-size: 13px; line-height: 1.8;
+      text-align: right; direction: rtl;
+      margin-bottom: 20px;
+      background: rgba(88,166,255,0.08);
+      border-radius: 12px; padding: 16px;
     }
-    @keyframes slideUp {
-      from { transform: translateY(100%); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
-    }
-    /* Safe area padding for notched devices */
-    @supports (padding: env(safe-area-inset-bottom)) {
-      .install-banner { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+    .install-step b { color: #e6edf3; }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
   </style>
 
@@ -75,17 +105,28 @@
 <body>
   <div id="root"></div>
 
-  <!-- Install prompt banner (shown before PWA install) -->
-  <div id="install-banner" class="install-banner hidden">
-    <div style="display: flex; align-items: center; gap: 12px; flex: 1;">
-      <img src="icons/icon-96x96.png" alt="" style="width: 40px; height: 40px; border-radius: 10px;">
-      <div>
-        <div style="color: #e6edf3; font-size: 14px; font-weight: 700;">התקן את Inventory</div>
-        <div style="color: #8b949e; font-size: 12px;">הוסף למסך הבית לגישה מהירה</div>
+  <!-- Install overlay -->
+  <div id="install-overlay" class="install-overlay hidden">
+    <div class="install-card">
+      <img src="icons/icon-192x192.png" alt="Inventory" class="install-icon">
+      <div class="install-title">📦 Smart Inventory</div>
+      <div class="install-desc">התקן את האפליקציה על מסך הבית של הטאבלט לגישה מהירה ושימוש אופליין</div>
+      
+      <div id="install-auto" style="display:none;">
+        <button class="install-btn-big" id="install-btn">⬇️ התקן עכשיו</button>
       </div>
+      
+      <div id="install-manual">
+        <div class="install-step">
+          <b>שלב 1:</b> לחץ על ⋮ (תפריט) למעלה בדפדפן<br>
+          <b>שלב 2:</b> בחר <b>"הוספה למסך הבית"</b><br>
+          <b>שלב 3:</b> לחץ <b>"הוסף"</b> ← זהו! ✅
+        </div>
+        <button class="install-btn-big" id="install-manual-btn">👆 מצאתי! בוצע</button>
+      </div>
+      
+      <button class="install-skip" id="install-skip">דלג, אפתח מהדפדפן</button>
     </div>
-    <button class="install-btn" id="install-btn">התקן</button>
-    <button class="install-dismiss" id="install-dismiss">✕</button>
   </div>
 
   <!-- Product images data (plain JS, no transpilation needed) -->
@@ -1512,19 +1553,40 @@ root.render(<App />);
 
     // Install prompt handling
     let deferredPrompt = null;
-    const banner = document.getElementById("install-banner");
+    const overlay = document.getElementById("install-overlay");
     const installBtn = document.getElementById("install-btn");
-    const dismissBtn = document.getElementById("install-dismiss");
+    const installAutoDiv = document.getElementById("install-auto");
+    const installManualDiv = document.getElementById("install-manual");
+    const installManualBtn = document.getElementById("install-manual-btn");
+    const installSkip = document.getElementById("install-skip");
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
 
+    // If already installed as PWA, don't show overlay
+    if (isStandalone) {
+      overlay.classList.add("hidden");
+    }
+
+    // If browser supports auto-install prompt
     window.addEventListener("beforeinstallprompt", (e) => {
       e.preventDefault();
       deferredPrompt = e;
-      // Show banner if not previously dismissed
-      if (!localStorage.getItem("pwa-dismissed")) {
-        banner.classList.remove("hidden");
+      if (!isStandalone && !localStorage.getItem("pwa-dismissed")) {
+        overlay.classList.remove("hidden");
+        installAutoDiv.style.display = "block";
+        installManualDiv.style.display = "none";
       }
     });
 
+    // Show manual instructions if no auto-prompt after 2 seconds
+    setTimeout(() => {
+      if (!deferredPrompt && !isStandalone && !localStorage.getItem("pwa-dismissed")) {
+        overlay.classList.remove("hidden");
+        installAutoDiv.style.display = "none";
+        installManualDiv.style.display = "block";
+      }
+    }, 2000);
+
+    // Auto install button
     installBtn.addEventListener("click", async () => {
       if (deferredPrompt) {
         deferredPrompt.prompt();
@@ -1532,37 +1594,28 @@ root.render(<App />);
         console.log("Install:", result.outcome);
         deferredPrompt = null;
       }
-      banner.classList.add("hidden");
-    });
-
-    dismissBtn.addEventListener("click", () => {
-      banner.classList.add("hidden");
+      overlay.classList.add("hidden");
       localStorage.setItem("pwa-dismissed", "1");
     });
 
-    // Hide banner if already installed
-    window.addEventListener("appinstalled", () => {
-      banner.classList.add("hidden");
-      console.log("PWA installed successfully");
+    // Manual install done button
+    installManualBtn.addEventListener("click", () => {
+      overlay.classList.add("hidden");
+      localStorage.setItem("pwa-dismissed", "1");
     });
 
-    // iOS install instructions
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
-    
-    if (isIOS && !isStandalone && !localStorage.getItem("pwa-dismissed")) {
-      // Show iOS-specific instructions
-      banner.classList.remove("hidden");
-      installBtn.textContent = "הבנתי";
-      const infoDiv = banner.querySelector("div > div:last-child");
-      if (infoDiv) {
-        infoDiv.innerHTML = '<div style="color: #8b949e; font-size: 12px;">לחץ על <span style="font-size: 16px;">⬆️</span> שיתוף → הוסף למסך הבית</div>';
-      }
-      installBtn.addEventListener("click", () => {
-        banner.classList.add("hidden");
-        localStorage.setItem("pwa-dismissed", "1");
-      });
-    }
+    // Skip button
+    installSkip.addEventListener("click", () => {
+      overlay.classList.add("hidden");
+      localStorage.setItem("pwa-dismissed", "1");
+    });
+
+    // Hide if installed
+    window.addEventListener("appinstalled", () => {
+      overlay.classList.add("hidden");
+      localStorage.setItem("pwa-dismissed", "1");
+      console.log("PWA installed successfully");
+    });
   </script>
 </body>
 </html>
