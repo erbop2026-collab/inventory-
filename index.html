@@ -13,7 +13,7 @@
   
   <title>Smart Inventory</title>
   
-  <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="./manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-192x192.png">
   <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
   <link rel="apple-touch-icon" sizes="384x384" href="icons/icon-384x384.png">
@@ -1545,7 +1545,7 @@ root.render(<App />);
     // Register service worker
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
-        navigator.serviceWorker.register("/sw.js")
+        navigator.serviceWorker.register("sw.js")
           .then((reg) => console.log("SW registered:", reg.scope))
           .catch((err) => console.log("SW failed:", err));
       });

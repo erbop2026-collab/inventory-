@@ -1,10 +1,10 @@
 const CACHE_NAME = 'inventory-v1';
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png',
+  './',
+  './index.html',
+  './manifest.json',
+  './icons/icon-192x192.png',
+  './icons/icon-512x512.png',
 ];
 
 // Install — cache core assets
@@ -40,7 +40,7 @@ self.addEventListener('fetch', (e) => {
     }).catch(() => {
       // Offline fallback
       if (e.request.destination === 'document') {
-        return caches.match('/index.html');
+        return caches.match('./index.html');
       }
     })
   );
