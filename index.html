@@ -261,6 +261,34 @@ input,select,textarea{font-family:inherit;color:inherit}
 .api-dot.connected{background:#3fb950;box-shadow:0 0 6px #3fb950}
 .api-dot.disconnected{background:#f85149}
 
+/* ===== ALERTS ===== */
+.alert-banner{margin:0 auto 8px;max-width:480px;padding:0 20px}
+.alert-card{border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:all 0.15s}
+.alert-card:active{transform:scale(0.98)}
+.alert-card.critical{background:linear-gradient(135deg,rgba(248,81,73,0.1),rgba(248,81,73,0.04));border:1px solid rgba(248,81,73,0.25)}
+.alert-card.warning{background:linear-gradient(135deg,rgba(210,153,34,0.1),rgba(210,153,34,0.04));border:1px solid rgba(210,153,34,0.25)}
+.alert-icon{font-size:28px;flex-shrink:0}
+.alert-body{flex:1;min-width:0}
+.alert-title{font-size:13px;font-weight:700}
+.alert-sub{font-size:11px;color:#8b949e;margin-top:2px}
+.alert-count{font-size:22px;font-weight:800;flex-shrink:0}
+.alert-badge{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;border-radius:8px;background:#f85149;color:#fff;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 4px;box-shadow:0 0 6px rgba(248,81,73,0.4)}
+.alerts-list{max-width:700px;margin:0 auto;padding:10px 16px}
+.alert-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;margin-bottom:6px;transition:all 0.15s}
+.alert-item.zero{background:rgba(248,81,73,0.06);border:1px solid rgba(248,81,73,0.15)}
+.alert-item.low{background:rgba(210,153,34,0.06);border:1px solid rgba(210,153,34,0.15)}
+.alert-item-img{width:44px;height:44px;border-radius:10px;object-fit:cover;flex-shrink:0}
+.alert-item-emoji{font-size:32px;width:44px;text-align:center;flex-shrink:0}
+.alert-item-info{flex:1;min-width:0}
+.alert-item-name{font-size:13px;font-weight:600}
+.alert-item-cat{font-size:10px;color:#8b949e}
+.alert-item-stock{text-align:right;flex-shrink:0}
+.alert-item-qty{font-size:18px;font-weight:800}
+.alert-item-unit{font-size:10px;color:#8b949e}
+.alert-filter-bar{display:flex;gap:6px;padding:8px 16px;max-width:700px;margin:0 auto}
+.alert-filter{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);color:#8b949e;transition:all 0.15s}
+.alert-filter.active{border-color:rgba(248,81,73,0.4);background:rgba(248,81,73,0.1);color:#f85149}
+
 </style>
 </head>
 <body>
@@ -372,107 +400,107 @@ var CATEGORIES = [
 
 var ITEMS_DB = {
   fruits:[
-    {id:"f1",name:"Apples",nameEs:"Manzanas",img:"apples_5",emoji:"\uD83C\uDF4E",unit:"kg",stock:45,price:3.2,subs:[]},
-    {id:"f2",name:"Clementines",nameEs:"Clementinas",img:"clemintines_7",emoji:"\uD83C\uDF4A",unit:"kg",stock:30,price:2.5,subs:[]},
-    {id:"f3",name:"Dragon Fruit",nameEs:"Pitahaya",img:"dragon_fruit_16",emoji:"\uD83D\uDC09",unit:"pcs",stock:12,price:6.0,subs:[]},
-    {id:"f4",name:"Grapefruit",nameEs:"Toronja",img:"grapefruit___pink_8",emoji:"\uD83C\uDF4A",unit:"pcs",stock:25,price:1.8,subs:[
+    {id:"f1",name:"Apples",nameEs:"Manzanas",img:"apples_5",emoji:"\uD83C\uDF4E",unit:"kg",stock:45,price:3.2,loc:["fridge","kitchen"],subs:[]},
+    {id:"f2",name:"Clementines",nameEs:"Clementinas",img:"clemintines_7",emoji:"\uD83C\uDF4A",unit:"kg",stock:30,price:2.5,loc:["fridge","kitchen"],subs:[]},
+    {id:"f3",name:"Dragon Fruit",nameEs:"Pitahaya",img:"dragon_fruit_16",emoji:"\uD83D\uDC09",unit:"pcs",stock:12,price:6.0,loc:["fridge","kitchen"],subs:[]},
+    {id:"f4",name:"Grapefruit",nameEs:"Toronja",img:"grapefruit___pink_8",emoji:"\uD83C\uDF4A",unit:"pcs",stock:25,price:1.8,loc:["fridge","kitchen"],subs:[
       {id:"f4a",name:"Pink Grapefruit",nameEs:"Toronja Rosada",stock:15,price:2.0},
       {id:"f4b",name:"White Grapefruit",nameEs:"Toronja Blanca",stock:10,price:1.5}
     ]},
-    {id:"f5",name:"Grapes",nameEs:"Uvas",img:"grapes_15",emoji:"\uD83C\uDF47",unit:"kg",stock:18,price:4.5,subs:[
+    {id:"f5",name:"Grapes",nameEs:"Uvas",img:"grapes_15",emoji:"\uD83C\uDF47",unit:"kg",stock:18,price:4.5,loc:["fridge","kitchen"],subs:[
       {id:"f5a",name:"Red Grapes",nameEs:"Uvas Rojas",stock:10,price:4.5},
       {id:"f5b",name:"Green Grapes",nameEs:"Uvas Verdes",stock:8,price:4.5}
     ]},
-    {id:"f6",name:"Lemons",nameEs:"Limones",img:"lemon_9",emoji:"\uD83C\uDF4B",unit:"pcs",stock:80,price:0.5,subs:[]},
-    {id:"f7",name:"Mangoes",nameEs:"Mangos",img:"mango_11",emoji:"\uD83E\uDD6D",unit:"pcs",stock:22,price:2.0,subs:[]},
-    {id:"f8",name:"Pineapple",nameEs:"Pi\u00f1a",img:"pineapple__golden_13",emoji:"\uD83C\uDF4D",unit:"pcs",stock:8,price:3.5,subs:[]},
-    {id:"f9",name:"Pink Pineapple",nameEs:"Pi\u00f1a Rosa",img:"pink_pinapple_36",emoji:"\uD83C\uDF4D",unit:"pcs",stock:5,price:8.0,subs:[]}
+    {id:"f6",name:"Lemons",nameEs:"Limones",img:"lemon_9",emoji:"\uD83C\uDF4B",unit:"pcs",stock:80,price:0.5,loc:["fridge","kitchen"],subs:[]},
+    {id:"f7",name:"Mangoes",nameEs:"Mangos",img:"mango_11",emoji:"\uD83E\uDD6D",unit:"pcs",stock:22,price:2.0,loc:["fridge","kitchen"],subs:[]},
+    {id:"f8",name:"Pineapple",nameEs:"Pi\u00f1a",img:"pineapple__golden_13",emoji:"\uD83C\uDF4D",unit:"pcs",stock:8,price:3.5,loc:["fridge","kitchen"],subs:[]},
+    {id:"f9",name:"Pink Pineapple",nameEs:"Pi\u00f1a Rosa",img:"pink_pinapple_36",emoji:"\uD83C\uDF4D",unit:"pcs",stock:5,price:8.0,loc:["fridge","kitchen"],subs:[]}
   ],
   vegetables:[
-    {id:"v1",name:"Avocado",nameEs:"Aguacate",img:"avocado_17",emoji:"\uD83E\uDD51",unit:"pcs",stock:35,price:2.0,subs:[]},
-    {id:"v2",name:"Beets",nameEs:"Remolachas",img:"beets_18",emoji:"\uD83E\uDD6C",unit:"kg",stock:20,price:2.5,subs:[]},
-    {id:"v3",name:"Carrots",nameEs:"Zanahorias",img:"carrots_19",emoji:"\uD83E\uDD55",unit:"kg",stock:28,price:1.5,subs:[]},
-    {id:"v4",name:"Eggplant",nameEs:"Berenjena",img:"eggplant_italian_23",emoji:"\uD83C\uDF46",unit:"pcs",stock:18,price:2.8,subs:[]},
-    {id:"v5",name:"Garlic",nameEs:"Ajo",img:"garlic_24",emoji:"\uD83E\uDDC4",unit:"kg",stock:15,price:8.0,subs:[]},
-    {id:"v7",name:"Leek",nameEs:"Puerro",img:"leek_26",emoji:"\uD83E\uDD6C",unit:"pcs",stock:15,price:2.0,subs:[]},
-    {id:"v8",name:"Mushrooms",nameEs:"Champi\u00f1ones",img:"mushroom__button_27",emoji:"\uD83C\uDF44",unit:"kg",stock:12,price:5.0,subs:[
+    {id:"v1",name:"Avocado",nameEs:"Aguacate",img:"avocado_17",emoji:"\uD83E\uDD51",unit:"pcs",stock:35,price:2.0,loc:["fridge","kitchen"],subs:[]},
+    {id:"v2",name:"Beets",nameEs:"Remolachas",img:"beets_18",emoji:"\uD83E\uDD6C",unit:"kg",stock:20,price:2.5,loc:["fridge","kitchen"],subs:[]},
+    {id:"v3",name:"Carrots",nameEs:"Zanahorias",img:"carrots_19",emoji:"\uD83E\uDD55",unit:"kg",stock:28,price:1.5,loc:["fridge","kitchen"],subs:[]},
+    {id:"v4",name:"Eggplant",nameEs:"Berenjena",img:"eggplant_italian_23",emoji:"\uD83C\uDF46",unit:"pcs",stock:18,price:2.8,loc:["fridge","kitchen"],subs:[]},
+    {id:"v5",name:"Garlic",nameEs:"Ajo",img:"garlic_24",emoji:"\uD83E\uDDC4",unit:"kg",stock:15,price:8.0,loc:["dry","kitchen"],subs:[]},
+    {id:"v7",name:"Leek",nameEs:"Puerro",img:"leek_26",emoji:"\uD83E\uDD6C",unit:"pcs",stock:15,price:2.0,loc:["fridge","kitchen"],subs:[]},
+    {id:"v8",name:"Mushrooms",nameEs:"Champi\u00f1ones",img:"mushroom__button_27",emoji:"\uD83C\uDF44",unit:"kg",stock:12,price:5.0,loc:["fridge","kitchen"],subs:[
       {id:"v8a",name:"Button Mushrooms",nameEs:"Champi\u00f1ones Bot\u00f3n",stock:8,price:5.0},
       {id:"v8b",name:"Portobello",nameEs:"Portobello",stock:4,price:7.0}
     ]},
-    {id:"v9",name:"Red Onion",nameEs:"Cebolla Roja",img:"onion__red_28",emoji:"\uD83E\uDDC5",unit:"kg",stock:25,price:2.0,subs:[]},
-    {id:"v10",name:"Spanish Onion",nameEs:"Cebolla Espa\u00f1ola",img:"onion__spanish_29",emoji:"\uD83E\uDDC5",unit:"kg",stock:30,price:1.5,subs:[]},
-    {id:"v11",name:"Peppers",nameEs:"Pimientos",img:"pepper__red_32",emoji:"\uD83C\uDF36",unit:"kg",stock:54,price:4.0,subs:[
+    {id:"v9",name:"Red Onion",nameEs:"Cebolla Roja",img:"onion__red_28",emoji:"\uD83E\uDDC5",unit:"kg",stock:25,price:2.0,loc:["dry","kitchen"],subs:[]},
+    {id:"v10",name:"Spanish Onion",nameEs:"Cebolla Espa\u00f1ola",img:"onion__spanish_29",emoji:"\uD83E\uDDC5",unit:"kg",stock:30,price:1.5,loc:["dry","kitchen"],subs:[]},
+    {id:"v11",name:"Peppers",nameEs:"Pimientos",img:"pepper__red_32",emoji:"\uD83C\uDF36",unit:"kg",stock:54,price:4.0,loc:["fridge","kitchen"],subs:[
       {id:"v11a",name:"Red Pepper",nameEs:"Pimiento Rojo",img:"pepper__red_32",stock:20,price:4.0},
       {id:"v11b",name:"Yellow Pepper",nameEs:"Pimiento Amarillo",img:"pepper__yellow_33",stock:18,price:4.0},
       {id:"v11c",name:"Orange Pepper",nameEs:"Pimiento Naranja",img:"pepper__orange_34",stock:16,price:4.0}
     ]},
-    {id:"v14",name:"Jalape\u00f1o",nameEs:"Jalape\u00f1o",img:"jalepino_peppers_46",emoji:"\uD83C\uDF36",unit:"kg",stock:8,price:6.0,subs:[]},
-    {id:"v15",name:"Red Cabbage",nameEs:"Col Morada",img:"red_cabbage__shredded_2",emoji:"\uD83E\uDD6C",unit:"kg",stock:12,price:2.0,subs:[]},
-    {id:"v16",name:"Romaine Lettuce",nameEs:"Lechuga Romana",img:"romaine__chopped_3",emoji:"\uD83E\uDD6C",unit:"pcs",stock:20,price:1.5,subs:[]},
-    {id:"v17",name:"Tomatoes",nameEs:"Tomates",img:"tomato_grape_42",emoji:"\uD83C\uDF45",unit:"kg",stock:35,price:3.5,subs:[
+    {id:"v14",name:"Jalape\u00f1o",nameEs:"Jalape\u00f1o",img:"jalepino_peppers_46",emoji:"\uD83C\uDF36",unit:"kg",stock:8,price:6.0,loc:["fridge","kitchen"],subs:[]},
+    {id:"v15",name:"Red Cabbage",nameEs:"Col Morada",img:"red_cabbage__shredded_2",emoji:"\uD83E\uDD6C",unit:"kg",stock:12,price:2.0,loc:["fridge","kitchen"],subs:[]},
+    {id:"v16",name:"Romaine Lettuce",nameEs:"Lechuga Romana",img:"romaine__chopped_3",emoji:"\uD83E\uDD6C",unit:"pcs",stock:20,price:1.5,loc:["fridge","kitchen"],subs:[]},
+    {id:"v17",name:"Tomatoes",nameEs:"Tomates",img:"tomato_grape_42",emoji:"\uD83C\uDF45",unit:"kg",stock:35,price:3.5,loc:["fridge","kitchen"],subs:[
       {id:"v17a",name:"Grape Tomato",nameEs:"Tomate Cherry",img:"tomato_grape_42",stock:15,price:4.0},
       {id:"v17b",name:"Plum Tomato",nameEs:"Tomate Pera",img:"tomato_plum_43",stock:20,price:3.0}
     ]},
-    {id:"v19",name:"Zucchini",nameEs:"Calabac\u00edn",img:"zukini_green_44",emoji:"\uD83E\uDD52",unit:"kg",stock:30,price:2.75,subs:[
+    {id:"v19",name:"Zucchini",nameEs:"Calabac\u00edn",img:"zukini_green_44",emoji:"\uD83E\uDD52",unit:"kg",stock:30,price:2.75,loc:["fridge","kitchen"],subs:[
       {id:"v19a",name:"Green Zucchini",nameEs:"Calabac\u00edn Verde",img:"zukini_green_44",stock:18,price:2.5},
       {id:"v19b",name:"Yellow Zucchini",nameEs:"Calabac\u00edn Amarillo",img:"zukini__yellow_45",stock:12,price:3.0}
     ]}
   ],
   meat:[
-    {id:"m1",name:"Beef Sirloin",nameEs:"Solomillo de Res",img:"beef_sirloin_47",emoji:"\uD83E\uDD69",unit:"kg",stock:20,price:18.0,subs:[]},
-    {id:"m2",name:"Ground Beef",nameEs:"Carne Molida",img:"ground_beef_48",emoji:"\uD83E\uDD69",unit:"kg",stock:15,price:12.0,subs:[]},
-    {id:"m3",name:"Lamb Chops",nameEs:"Chuletas de Cordero",img:"lamb_chops_49",emoji:"\uD83C\uDF56",unit:"kg",stock:10,price:22.0,subs:[]},
-    {id:"m5",name:"Beef Ribs",nameEs:"Costillas de Res",img:"beef_ribs_51",emoji:"\uD83C\uDF56",unit:"kg",stock:12,price:16.0,subs:[]}
+    {id:"m1",name:"Beef Sirloin",nameEs:"Solomillo de Res",img:"beef_sirloin_47",emoji:"\uD83E\uDD69",unit:"kg",stock:20,price:18.0,loc:["fridge","freezer","kitchen"],subs:[]},
+    {id:"m2",name:"Ground Beef",nameEs:"Carne Molida",img:"ground_beef_48",emoji:"\uD83E\uDD69",unit:"kg",stock:15,price:12.0,loc:["fridge","freezer","kitchen"],subs:[]},
+    {id:"m3",name:"Lamb Chops",nameEs:"Chuletas de Cordero",img:"lamb_chops_49",emoji:"\uD83C\uDF56",unit:"kg",stock:10,price:22.0,loc:["fridge","freezer","kitchen"],subs:[]},
+    {id:"m5",name:"Beef Ribs",nameEs:"Costillas de Res",img:"beef_ribs_51",emoji:"\uD83C\uDF56",unit:"kg",stock:12,price:16.0,loc:["fridge","freezer","kitchen"],subs:[]}
   ],
   poultry:[
-    {id:"p1",name:"Chicken Breast",nameEs:"Pechuga de Pollo",img:"chicken_bottom__28",emoji:"\uD83C\uDF57",unit:"kg",stock:30,price:8.5,subs:[]},
-    {id:"p2",name:"Whole Chicken",nameEs:"Pollo Entero",img:"whole_chicken_53",emoji:"\uD83D\uDC14",unit:"pcs",stock:15,price:7.0,subs:[]},
-    {id:"p3",name:"Turkey",nameEs:"Pavo",img:"turkey_54",emoji:"\uD83E\uDD83",unit:"kg",stock:10,price:11.0,subs:[]},
-    {id:"p4",name:"Duck",nameEs:"Pato",img:"duck_55",emoji:"\uD83E\uDD86",unit:"pcs",stock:6,price:14.0,subs:[]},
-    {id:"p5",name:"Chicken Wings",nameEs:"Alitas de Pollo",img:"chicken_wings_56",emoji:"\uD83C\uDF57",unit:"kg",stock:20,price:6.0,subs:[]}
+    {id:"p1",name:"Chicken Breast",nameEs:"Pechuga de Pollo",img:"chicken_bottom__28",emoji:"\uD83C\uDF57",unit:"kg",stock:30,price:8.5,loc:["fridge","freezer","kitchen"],subs:[]},
+    {id:"p2",name:"Whole Chicken",nameEs:"Pollo Entero",img:"whole_chicken_53",emoji:"\uD83D\uDC14",unit:"pcs",stock:15,price:7.0,loc:["fridge","freezer","kitchen"],subs:[]},
+    {id:"p3",name:"Turkey",nameEs:"Pavo",img:"turkey_54",emoji:"\uD83E\uDD83",unit:"kg",stock:10,price:11.0,loc:["fridge","freezer","kitchen"],subs:[]},
+    {id:"p4",name:"Duck",nameEs:"Pato",img:"duck_55",emoji:"\uD83E\uDD86",unit:"pcs",stock:6,price:14.0,loc:["fridge","freezer","kitchen"],subs:[]},
+    {id:"p5",name:"Chicken Wings",nameEs:"Alitas de Pollo",img:"chicken_wings_56",emoji:"\uD83C\uDF57",unit:"kg",stock:20,price:6.0,loc:["fridge","freezer","kitchen"],subs:[]}
   ],
   fish:[
-    {id:"fi1",name:"Salmon Fillet",nameEs:"Filete de Salm\u00f3n",img:"fish__29",emoji:"\uD83D\uDC1F",unit:"kg",stock:12,price:20.0,subs:[]},
-    {id:"fi2",name:"Tuna Steak",nameEs:"Filete de At\u00fan",img:"tuna_steak_58",emoji:"\uD83D\uDC1F",unit:"kg",stock:8,price:24.0,subs:[]},
-    {id:"fi4",name:"Sea Bass",nameEs:"Lubina",img:"sea_bass_60",emoji:"\uD83D\uDC1F",unit:"kg",stock:10,price:18.0,subs:[]}
+    {id:"fi1",name:"Salmon Fillet",nameEs:"Filete de Salm\u00f3n",img:"fish__29",emoji:"\uD83D\uDC1F",unit:"kg",stock:12,price:20.0,loc:["fridge","freezer","kitchen"],subs:[]},
+    {id:"fi2",name:"Tuna Steak",nameEs:"Filete de At\u00fan",img:"tuna_steak_58",emoji:"\uD83D\uDC1F",unit:"kg",stock:8,price:24.0,loc:["fridge","freezer","kitchen"],subs:[]},
+    {id:"fi4",name:"Sea Bass",nameEs:"Lubina",img:"sea_bass_60",emoji:"\uD83D\uDC1F",unit:"kg",stock:10,price:18.0,loc:["fridge","freezer","kitchen"],subs:[]}
   ],
   melons:[
-    {id:"ml1",name:"Cantaloupe",nameEs:"Mel\u00f3n",img:"cantalope_6",emoji:"\uD83C\uDF48",unit:"pcs",stock:10,price:4.0,subs:[]},
-    {id:"ml2",name:"Honeydew",nameEs:"Mel\u00f3n Verde",img:"honey_dew_10",emoji:"\uD83C\uDF48",unit:"pcs",stock:8,price:4.5,subs:[]},
-    {id:"ml3",name:"Pomegranate",nameEs:"Granada",img:"pomegrante_12",emoji:"\uD83C\uDF4E",unit:"pcs",stock:12,price:3.5,subs:[]},
-    {id:"ml4",name:"Watermelon",nameEs:"Sand\u00eda",img:"watermellon_14",emoji:"\uD83C\uDF49",unit:"pcs",stock:6,price:5.0,subs:[]},
-    {id:"ml5",name:"Watermelon Radish",nameEs:"R\u00e1bano Sand\u00eda",img:"watermelon_raddish_35",emoji:"\uD83C\uDF49",unit:"kg",stock:8,price:5.0,subs:[]}
+    {id:"ml1",name:"Cantaloupe",nameEs:"Mel\u00f3n",img:"cantalope_6",emoji:"\uD83C\uDF48",unit:"pcs",stock:10,price:4.0,loc:["fridge","kitchen"],subs:[]},
+    {id:"ml2",name:"Honeydew",nameEs:"Mel\u00f3n Verde",img:"honey_dew_10",emoji:"\uD83C\uDF48",unit:"pcs",stock:8,price:4.5,loc:["fridge","kitchen"],subs:[]},
+    {id:"ml3",name:"Pomegranate",nameEs:"Granada",img:"pomegrante_12",emoji:"\uD83C\uDF4E",unit:"pcs",stock:12,price:3.5,loc:["fridge","kitchen"],subs:[]},
+    {id:"ml4",name:"Watermelon",nameEs:"Sand\u00eda",img:"watermellon_14",emoji:"\uD83C\uDF49",unit:"pcs",stock:6,price:5.0,loc:["fridge","kitchen"],subs:[]},
+    {id:"ml5",name:"Watermelon Radish",nameEs:"R\u00e1bano Sand\u00eda",img:"watermelon_raddish_35",emoji:"\uD83C\uDF49",unit:"kg",stock:8,price:5.0,loc:["fridge","kitchen"],subs:[]}
   ],
   dry_goods:[
-    {id:"dg1",name:"Flour",nameEs:"Harina",img:"flour_63",emoji:"\uD83C\uDF3E",unit:"kg",stock:50,price:1.2,subs:[]},
-    {id:"dg2",name:"Sugar",nameEs:"Az\u00facar",img:"sugar_64",emoji:"\uD83C\uDF6C",unit:"kg",stock:40,price:1.5,subs:[]},
-    {id:"dg3",name:"Rice",nameEs:"Arroz",img:"rice_65",emoji:"\uD83C\uDF5A",unit:"kg",stock:35,price:2.0,subs:[]},
-    {id:"dg4",name:"Pasta",nameEs:"Pasta",img:"pasta_66",emoji:"\uD83C\uDF5D",unit:"kg",stock:30,price:1.8,subs:[]},
-    {id:"dg5",name:"Olive Oil",nameEs:"Aceite de Oliva",img:"olive_oil_67",emoji:"\uD83E\uDDC8",unit:"L",stock:15,price:8.0,subs:[]},
-    {id:"dg6",name:"Bread Crumbs",nameEs:"Pan Rallado",img:"bread_crumbs_68",emoji:"\uD83C\uDF5E",unit:"kg",stock:10,price:2.5,subs:[]}
+    {id:"dg1",name:"Flour",nameEs:"Harina",img:"flour_63",emoji:"\uD83C\uDF3E",unit:"kg",stock:50,price:1.2,loc:["dry","kitchen"],subs:[]},
+    {id:"dg2",name:"Sugar",nameEs:"Az\u00facar",img:"sugar_64",emoji:"\uD83C\uDF6C",unit:"kg",stock:40,price:1.5,loc:["dry","kitchen"],subs:[]},
+    {id:"dg3",name:"Rice",nameEs:"Arroz",img:"rice_65",emoji:"\uD83C\uDF5A",unit:"kg",stock:35,price:2.0,loc:["dry","kitchen"],subs:[]},
+    {id:"dg4",name:"Pasta",nameEs:"Pasta",img:"pasta_66",emoji:"\uD83C\uDF5D",unit:"kg",stock:30,price:1.8,loc:["dry","kitchen"],subs:[]},
+    {id:"dg5",name:"Olive Oil",nameEs:"Aceite de Oliva",img:"olive_oil_67",emoji:"\uD83E\uDDC8",unit:"L",stock:15,price:8.0,loc:["dry","kitchen"],subs:[]},
+    {id:"dg6",name:"Bread Crumbs",nameEs:"Pan Rallado",img:"bread_crumbs_68",emoji:"\uD83C\uDF5E",unit:"kg",stock:10,price:2.5,loc:["dry","kitchen"],subs:[]}
   ],
   spices:[
-    {id:"s1",name:"Salt",nameEs:"Sal",img:"salt_69",emoji:"\uD83E\uDDC2",unit:"kg",stock:10,price:0.8,subs:[]},
-    {id:"s2",name:"Black Pepper",nameEs:"Pimienta Negra",img:"black_pepper_70",emoji:"\uD83C\uDF36",unit:"kg",stock:5,price:12.0,subs:[]},
-    {id:"s3",name:"Paprika",nameEs:"Piment\u00f3n",img:"paprika_71",emoji:"\uD83C\uDF36",unit:"kg",stock:3,price:8.0,subs:[]},
-    {id:"s4",name:"Cumin",nameEs:"Comino",img:"cumin_72",emoji:"\uD83C\uDF36",unit:"kg",stock:4,price:10.0,subs:[]},
-    {id:"s5",name:"Oregano",nameEs:"Or\u00e9gano",img:"oregano_73",emoji:"\uD83C\uDF3F",unit:"kg",stock:2,price:15.0,subs:[]},
-    {id:"s6",name:"Cinnamon",nameEs:"Canela",img:"cinnamon_74",emoji:"\uD83C\uDF36",unit:"kg",stock:3,price:11.0,subs:[]}
+    {id:"s1",name:"Salt",nameEs:"Sal",img:"salt_69",emoji:"\uD83E\uDDC2",unit:"kg",stock:10,price:0.8,loc:["dry","kitchen"],subs:[]},
+    {id:"s2",name:"Black Pepper",nameEs:"Pimienta Negra",img:"black_pepper_70",emoji:"\uD83C\uDF36",unit:"kg",stock:5,price:12.0,loc:["dry","kitchen"],subs:[]},
+    {id:"s3",name:"Paprika",nameEs:"Piment\u00f3n",img:"paprika_71",emoji:"\uD83C\uDF36",unit:"kg",stock:3,price:8.0,loc:["dry","kitchen"],subs:[]},
+    {id:"s4",name:"Cumin",nameEs:"Comino",img:"cumin_72",emoji:"\uD83C\uDF36",unit:"kg",stock:4,price:10.0,loc:["dry","kitchen"],subs:[]},
+    {id:"s5",name:"Oregano",nameEs:"Or\u00e9gano",img:"oregano_73",emoji:"\uD83C\uDF3F",unit:"kg",stock:2,price:15.0,loc:["dry","kitchen"],subs:[]},
+    {id:"s6",name:"Cinnamon",nameEs:"Canela",img:"cinnamon_74",emoji:"\uD83C\uDF36",unit:"kg",stock:3,price:11.0,loc:["dry","kitchen"],subs:[]}
   ],
   roots:[
-    {id:"rt1",name:"Baby Carrots",nameEs:"Zanahorias Baby",img:"baby_carrots_mini_pilled_20",emoji:"\uD83E\uDD55",unit:"kg",stock:20,price:3.0,subs:[]},
-    {id:"rt2",name:"White Cabbage",nameEs:"Col Blanca",img:"cabbage__shredded__white__1",emoji:"\uD83E\uDD6C",unit:"kg",stock:15,price:1.5,subs:[]},
-    {id:"rt3",name:"Celery Root",nameEs:"Ra\u00edz de Apio",img:"cellery__root_21",emoji:"\uD83E\uDD6C",unit:"kg",stock:10,price:3.5,subs:[]},
-    {id:"rt4",name:"Daikon",nameEs:"Daikon",img:"dykon_22",emoji:"\uD83E\uDD55",unit:"kg",stock:12,price:2.5,subs:[]},
-    {id:"rt5",name:"Parsley Root",nameEs:"Ra\u00edz de Perejil",img:"parsley__root_30",emoji:"\uD83E\uDD6C",unit:"kg",stock:10,price:3.0,subs:[]},
-    {id:"rt6",name:"Parsnip",nameEs:"Chirivía",img:"parsnip_31",emoji:"\uD83E\uDD55",unit:"kg",stock:12,price:2.5,subs:[]},
-    {id:"rt7",name:"Potatoes",nameEs:"Papas",img:"potato__idaho_37",emoji:"\uD83E\uDD54",unit:"kg",stock:95,price:1.5,subs:[
+    {id:"rt1",name:"Baby Carrots",nameEs:"Zanahorias Baby",img:"baby_carrots_mini_pilled_20",emoji:"\uD83E\uDD55",unit:"kg",stock:20,price:3.0,loc:["fridge","kitchen"],subs:[]},
+    {id:"rt2",name:"White Cabbage",nameEs:"Col Blanca",img:"cabbage__shredded__white__1",emoji:"\uD83E\uDD6C",unit:"kg",stock:15,price:1.5,loc:["fridge","kitchen"],subs:[]},
+    {id:"rt3",name:"Celery Root",nameEs:"Ra\u00edz de Apio",img:"cellery__root_21",emoji:"\uD83E\uDD6C",unit:"kg",stock:10,price:3.5,loc:["fridge","kitchen"],subs:[]},
+    {id:"rt4",name:"Daikon",nameEs:"Daikon",img:"dykon_22",emoji:"\uD83E\uDD55",unit:"kg",stock:12,price:2.5,loc:["fridge","kitchen"],subs:[]},
+    {id:"rt5",name:"Parsley Root",nameEs:"Ra\u00edz de Perejil",img:"parsley__root_30",emoji:"\uD83E\uDD6C",unit:"kg",stock:10,price:3.0,loc:["fridge","kitchen"],subs:[]},
+    {id:"rt6",name:"Parsnip",nameEs:"Chirivía",img:"parsnip_31",emoji:"\uD83E\uDD55",unit:"kg",stock:12,price:2.5,loc:["fridge","kitchen"],subs:[]},
+    {id:"rt7",name:"Potatoes",nameEs:"Papas",img:"potato__idaho_37",emoji:"\uD83E\uDD54",unit:"kg",stock:95,price:1.5,loc:["dry","kitchen"],subs:[
       {id:"rt7a",name:"Idaho Potato",nameEs:"Papa Idaho",img:"potato__idaho_37",stock:40,price:1.2},
       {id:"rt7b",name:"Red Potato",nameEs:"Papa Roja",img:"potato__red_38",stock:30,price:1.5},
       {id:"rt7c",name:"Yukon Gold",nameEs:"Papa Yukon",img:"yukon_chef_39",stock:25,price:1.8}
     ]},
-    {id:"rt10",name:"Sweet Potato",nameEs:"Batata",img:"sweet__potato_40",emoji:"\uD83C\uDF60",unit:"kg",stock:25,price:2.0,subs:[]},
-    {id:"rt11",name:"Red Radish",nameEs:"R\u00e1bano Rojo",img:"raddish_red_41",emoji:"\uD83E\uDD55",unit:"kg",stock:10,price:3.0,subs:[]}
+    {id:"rt10",name:"Sweet Potato",nameEs:"Batata",img:"sweet__potato_40",emoji:"\uD83C\uDF60",unit:"kg",stock:25,price:2.0,loc:["dry","kitchen","fridge"],subs:[]},
+    {id:"rt11",name:"Red Radish",nameEs:"R\u00e1bano Rojo",img:"raddish_red_41",emoji:"\uD83E\uDD55",unit:"kg",stock:10,price:3.0,loc:["fridge","kitchen"],subs:[]}
   ]
 };
 
@@ -500,15 +528,39 @@ var quantity = "";
 var manageMode = false;
 var showModal = "";
 var deleteTarget = null;
+var editTarget = null;
 var pinInput = "";
 var pinError = false;
 var pendingMode = "";
 var countChanges = {};
+var countFilter = "all";
 var searchQuery = "";
 var sortBy = "name";
 var sortDir = "asc";
 var adminTab = "dashboard";
 var expandedSubs = {};
+var alertFilter = "all"; // all, zero, low
+
+// ========== ALERTS ==========
+function getAlerts() {
+  var alerts=[];
+  for(var c in ITEMS_DB){var cat=null;for(var ci=0;ci<CATEGORIES.length;ci++)if(CATEGORIES[ci].id===c)cat=CATEGORIES[ci];
+    for(var i=0;i<ITEMS_DB[c].length;i++){var it=ITEMS_DB[c][i];
+      if(it.stock===0) alerts.push({item:it,cat:cat,catId:c,idx:i,level:"zero"});
+      else if(it.stock<=5) alerts.push({item:it,cat:cat,catId:c,idx:i,level:"critical"});
+      else if(it.stock<=15) alerts.push({item:it,cat:cat,catId:c,idx:i,level:"low"});
+    }
+  }
+  alerts.sort(function(a,b){
+    var order={zero:0,critical:1,low:2};
+    if(order[a.level]!==order[b.level]) return order[a.level]-order[b.level];
+    return a.item.stock-b.item.stock;
+  });
+  return alerts;
+}
+function getZeroCount(){var n=0;for(var c in ITEMS_DB)for(var i=0;i<ITEMS_DB[c].length;i++)if(ITEMS_DB[c][i].stock===0)n++;return n;}
+function getLowCount(){var n=0;for(var c in ITEMS_DB)for(var i=0;i<ITEMS_DB[c].length;i++)if(ITEMS_DB[c][i].stock>0&&ITEMS_DB[c][i].stock<=15)n++;return n;}
+function getTotalAlertCount(){return getZeroCount()+getLowCount();}
 
 // Scan state
 var scanState = "idle";
@@ -572,6 +624,7 @@ function setMode(m) {
   mode=m;
   if(m==="admin"){screen="admin";adminTab="dashboard";}
   else if(m==="in") screen="stockin_method";
+  else if(m==="count"){screen="count";countFilter="all";countChanges={};searchQuery="";}
   else screen="storage";
   render();
 }
@@ -581,7 +634,9 @@ function pickItem(catId,idx) { if(manageMode) return; selItem=ITEMS_DB[catId][id
 function goBack() {
   if(showModal){showModal="";render();return;}
   if(screen==="qty") screen="items";
-  else if(screen==="items"||screen==="count"){screen="categories";manageMode=false;}
+  else if(screen==="items"){screen="categories";manageMode=false;}
+  else if(screen==="count") screen="main";
+  else if(screen==="alerts") screen="main";
   else if(screen==="categories"||screen==="stockin_method") screen="storage";
   else if(screen==="storage") screen="main";
   else if(screen==="admin") screen="main";
@@ -595,7 +650,8 @@ function clearQty() { quantity=""; render(); }
 function confirmQty() {
   if(!quantity||parseFloat(quantity)===0)return;
   var q=parseFloat(quantity);
-  if(mode==="out") selItem.stock=Math.max(0,selItem.stock-q);
+  if(mode==="out"&&q>selItem.stock){showModal="overstock";render();return;}
+  if(mode==="out") selItem.stock=selItem.stock-q;
   else if(mode==="in") selItem.stock+=q;
   txLog.push({item:selItem.name,mode:mode,qty:q,unit:qtyMode==="kg"?"kg":selItem.unit,storage:storage?storage.name:"",time:now()});
   showModal="success";render();
@@ -603,11 +659,11 @@ function confirmQty() {
 }
 
 // ========== COUNT ==========
-function updateCount(catId,idx,val) { countChanges[catId+"_"+idx]=parseFloat(val)||0; }
+function updateCount(catId,idx,val) { countChanges[catId+"|"+idx]=parseFloat(val)||0; }
 function saveCount() {
-  for(var k in countChanges){var p=k.split("_");var ci=p[0],idx=parseInt(p[1]);
+  for(var k in countChanges){var sep=k.lastIndexOf("|");var ci=k.substring(0,sep),idx=parseInt(k.substring(sep+1));
     ITEMS_DB[ci][idx].stock=countChanges[k];
-    txLog.push({item:ITEMS_DB[ci][idx].name,mode:"count",qty:countChanges[k],unit:ITEMS_DB[ci][idx].unit,storage:storage?storage.name:"",time:now()});
+    txLog.push({item:ITEMS_DB[ci][idx].name,mode:"count",qty:countChanges[k],unit:ITEMS_DB[ci][idx].unit,storage:"",time:now()});
   }
   countChanges={};showModal="success";render();setTimeout(function(){showModal="";render();},1200);
 }
@@ -631,6 +687,18 @@ function pinPad(k) {
 function toggleManage(){manageMode=!manageMode;render();}
 function openAdd(){showModal="add";render();setTimeout(function(){var e=document.getElementById("add-name");if(e)e.focus();},100);}
 function openDelete(catId,idx){deleteTarget={catId:catId,idx:idx,item:ITEMS_DB[catId][idx]};showModal="delete";render();}
+function openEdit(catId,idx){editTarget={catId:catId,idx:idx,item:ITEMS_DB[catId][idx]};showModal="edit";render();}
+function saveEditItem(){
+  if(!editTarget) return;
+  var it=editTarget.item;
+  it.name=(document.getElementById("edit-name")||{}).value||it.name;
+  it.nameEs=(document.getElementById("edit-name-es")||{}).value||"";
+  it.unit=(document.getElementById("edit-unit")||{}).value||it.unit;
+  it.price=parseFloat((document.getElementById("edit-price")||{}).value)||it.price;
+  var locs=[];for(var si=0;si<STORAGES.length;si++){var cb=document.getElementById("edit-loc-"+STORAGES[si].id);if(cb&&cb.checked)locs.push(STORAGES[si].id);}
+  it.loc=locs;
+  editTarget=null;showModal="";render();
+}
 function saveNewItem(){
   var n=(document.getElementById("add-name")||{}).value||"";
   var nEs=(document.getElementById("add-name-es")||{}).value||"";
@@ -638,7 +706,8 @@ function saveNewItem(){
   var st=parseFloat((document.getElementById("add-stock")||{}).value)||0;
   var pr=parseFloat((document.getElementById("add-price")||{}).value)||0;
   if(!n.trim())return;
-  ITEMS_DB[selCat.id].push({id:"new_"+Date.now(),name:n.trim(),nameEs:nEs.trim(),emoji:selCat.emoji,unit:u,stock:st,price:pr,subs:[]});
+  var locs=[];for(var si=0;si<STORAGES.length;si++){var cb=document.getElementById("add-loc-"+STORAGES[si].id);if(cb&&cb.checked)locs.push(STORAGES[si].id);}
+  ITEMS_DB[selCat.id].push({id:"new_"+Date.now(),name:n.trim(),nameEs:nEs.trim(),emoji:selCat.emoji,unit:u,stock:st,price:pr,loc:locs,subs:[]});
   showModal="";render();
 }
 function confirmDelete(){if(deleteTarget)ITEMS_DB[deleteTarget.catId].splice(deleteTarget.idx,1);showModal="";deleteTarget=null;render();}
@@ -650,6 +719,10 @@ function setSearch(v){searchQuery=v;render();}
 function setSort(field){if(sortBy===field)sortDir=sortDir==="asc"?"desc":"asc";else{sortBy=field;sortDir="asc";}render();}
 function filteredItems(catId) {
   var items=(ITEMS_DB[catId]||[]).slice();
+  // Filter by storage location
+  if(storage && (mode==="in"||mode==="out")) {
+    items=items.filter(function(it){return !it.loc || it.loc.length===0 || it.loc.indexOf(storage.id)!==-1;});
+  }
   if(searchQuery) {
     var q=searchQuery.toLowerCase();
     items=items.filter(function(it){return it.name.toLowerCase().indexOf(q)!==-1||(it.nameEs||"").toLowerCase().indexOf(q)!==-1;});
@@ -670,19 +743,21 @@ function filteredItems(catId) {
 // ========== EXCEL EXPORT ==========
 function exportExcel(type) {
   var csv = "";
+  // Helper to get location names
+  function locNames(it){if(!it.loc||!it.loc.length)return"All";var n=[];for(var i=0;i<it.loc.length;i++)for(var s=0;s<STORAGES.length;s++)if(STORAGES[s].id===it.loc[i])n.push(STORAGES[s].name);return n.join(", ");}
   if(type==="inventory") {
-    csv="Category,Name,Spanish Name,Unit,Stock,Price,Value,Status\n";
+    csv="Category,Name,Spanish Name,Locations,Unit,Stock,Price,Value,Status\n";
     for(var c in ITEMS_DB){var cat=null;for(var ci=0;ci<CATEGORIES.length;ci++)if(CATEGORIES[ci].id===c)cat=CATEGORIES[ci];
       for(var i=0;i<ITEMS_DB[c].length;i++){var it=ITEMS_DB[c][i];var st=it.stock<5?"Critical":it.stock<15?"Low":"OK";
-        csv+='"'+(cat?cat.name:"")+'","'+it.name+'","'+(it.nameEs||"")+'","'+it.unit+'",'+it.stock+','+it.price.toFixed(2)+','+(it.stock*it.price).toFixed(2)+',"'+st+'"\n';
+        csv+='"'+(cat?cat.name:"")+'","'+it.name+'","'+(it.nameEs||"")+'","'+locNames(it)+'","'+it.unit+'",'+it.stock+','+it.price.toFixed(2)+','+(it.stock*it.price).toFixed(2)+',"'+st+'"\n';
         if(it.subs)for(var s=0;s<it.subs.length;s++){var sub=it.subs[s];
-          csv+='"'+(cat?cat.name:"")+'","  \u2514 '+sub.name+'","'+(sub.nameEs||"")+'","'+it.unit+'",'+sub.stock+','+(sub.price||it.price).toFixed(2)+','+(sub.stock*(sub.price||it.price)).toFixed(2)+',""\n';}
+          csv+='"'+(cat?cat.name:"")+'","  \u2514 '+sub.name+'","'+(sub.nameEs||"")+'","","'+it.unit+'",'+sub.stock+','+(sub.price||it.price).toFixed(2)+','+(sub.stock*(sub.price||it.price)).toFixed(2)+',""\n';}
     }}
   } else {
-    csv="Name,Spanish Name,Category,Unit,Price,Has Sub-items\n";
+    csv="Name,Spanish Name,Category,Locations,Unit,Price,Sub-items\n";
     for(var c in ITEMS_DB){var cat=null;for(var ci=0;ci<CATEGORIES.length;ci++)if(CATEGORIES[ci].id===c)cat=CATEGORIES[ci];
       for(var i=0;i<ITEMS_DB[c].length;i++){var it=ITEMS_DB[c][i];
-        csv+='"'+it.name+'","'+(it.nameEs||"")+'","'+(cat?cat.name:"")+'","'+it.unit+'",'+it.price.toFixed(2)+','+(it.subs&&it.subs.length?it.subs.length:0)+'\n';
+        csv+='"'+it.name+'","'+(it.nameEs||"")+'","'+(cat?cat.name:"")+'","'+locNames(it)+'","'+it.unit+'",'+it.price.toFixed(2)+','+(it.subs&&it.subs.length?it.subs.length:0)+'\n';
     }}
   }
   var blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
@@ -981,8 +1056,10 @@ function renderApp() {
   if(showModal==="pin") return renderPin();
   var h = renderCurrent();
   if(showModal==="success") h+=renderSuccess();
+  if(showModal==="overstock") h+=renderOverstock();
   if(showModal==="add") h+=renderAddModal();
   if(showModal==="delete") h+=renderDeleteModal();
+  if(showModal==="edit") h+=renderEditModal();
   if(showModal==="invoice") h+=renderInvoiceModal();
   return h;
 }
@@ -994,6 +1071,7 @@ function renderCurrent() {
   if(screen==="items") return renderItems();
   if(screen==="qty") return renderQty();
   if(screen==="count") return renderCount();
+  if(screen==="alerts") return renderAlerts();
   if(screen==="admin") return renderAdmin();
   return renderMain();
 }
@@ -1007,6 +1085,8 @@ function renderHeader(title, sub) {
   h+='<div class="header-right">';
   if((screen==="items"||screen==="count")&&isAdmin) h+='<button class="manage-btn'+(manageMode?' active':'')+'" onclick="toggleManage()">'+(manageMode?'Done':'Manage')+'</button>';
   h+=modeBadge();
+  var alertTotal=getTotalAlertCount();
+  if(screen==="main"&&alertTotal>0){h+='<button class="icon-btn" onclick="alertFilter=\'all\';screen=\'alerts\';render()" title="Alerts" style="position:relative">\uD83D\uDD14<span class="alert-badge">'+alertTotal+'</span></button>';}
   if(isAdmin) h+='<button class="icon-btn" onclick="logout()" title="Lock">\uD83D\uDD12</button>';
   h+='<div class="online-dot"></div></div></div>';
   return h;
@@ -1014,6 +1094,26 @@ function renderHeader(title, sub) {
 
 function renderMain() {
   var h=renderHeader("Smart Inventory","\uD83C\uDF73 Kitchen Management");
+  // Alert banners
+  var zeroN=getZeroCount(),lowN=getLowCount();
+  if(zeroN>0||lowN>0) {
+    h+='<div class="alert-banner">';
+    if(zeroN>0) {
+      h+='<div class="alert-card critical" onclick="alertFilter=\'zero\';screen=\'alerts\';render()">';
+      h+='<div class="alert-icon">\u26D4</div><div class="alert-body">';
+      h+='<div class="alert-title" style="color:#f85149">Out of Stock</div>';
+      h+='<div class="alert-sub">'+zeroN+' item'+(zeroN>1?'s':'')+' at zero \u2014 tap to view</div></div>';
+      h+='<div class="alert-count" style="color:#f85149">'+zeroN+'</div></div>';
+    }
+    if(lowN>0) {
+      h+='<div class="alert-card warning" style="margin-top:6px" onclick="alertFilter=\'low\';screen=\'alerts\';render()">';
+      h+='<div class="alert-icon">\u26A0\uFE0F</div><div class="alert-body">';
+      h+='<div class="alert-title" style="color:#d29922">Low Stock</div>';
+      h+='<div class="alert-sub">'+lowN+' item'+(lowN>1?'s':'')+' running low \u2014 tap to view</div></div>';
+      h+='<div class="alert-count" style="color:#d29922">'+lowN+'</div></div>';
+    }
+    h+='</div>';
+  }
   h+='<div class="main-menu">';
   // Stock In
   h+='<button class="menu-card" style="background:linear-gradient(135deg,rgba(63,185,80,0.08),rgba(63,185,80,0.02));border-color:rgba(63,185,80,0.2);--card-bg:rgba(10,14,19,0.9)" onclick="setMode(\'in\')">';
@@ -1083,7 +1183,10 @@ function renderItems() {
     var origArr=ITEMS_DB[selCat.id];for(var oi=0;oi<origArr.length;oi++) if(origArr[oi].id===it.id){origIdx=oi;break;}
     var sc=it.stock<5?"#f85149":it.stock<15?"#d29922":"#3fb950";
     h+='<div class="photo-tile" onclick="pickItem(\''+selCat.id+'\','+origIdx+')">';
-    if(manageMode) h+='<div class="tile-del" onclick="event.stopPropagation();openDelete(\''+selCat.id+'\','+origIdx+')">\u2715</div>';
+    if(manageMode) {
+      h+='<div class="tile-del" onclick="event.stopPropagation();openDelete(\''+selCat.id+'\','+origIdx+')">\u2715</div>';
+      h+='<div style="position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:rgba(88,166,255,0.9);color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;z-index:2" onclick="event.stopPropagation();openEdit(\''+selCat.id+'\','+origIdx+')">\u270F</div>';
+    }
     // Image
     if(it.img&&PRODUCT_IMAGES[it.img]) h+='<img class="tile-img" src="'+PRODUCT_IMAGES[it.img]+'">';
     else h+='<div class="tile-emoji">'+it.emoji+'</div>';
@@ -1092,6 +1195,10 @@ function renderItems() {
     // Name
     h+='<div class="tile-name">'+it.name+'</div>';
     if(it.nameEs) h+='<div class="tile-name-es">'+it.nameEs+'</div>';
+    // Location icons
+    if(it.loc&&it.loc.length>0&&it.loc.length<5){var li='';for(var lx=0;lx<it.loc.length;lx++)for(var sx=0;sx<STORAGES.length;sx++)if(STORAGES[sx].id===it.loc[lx])li+=STORAGES[sx].icon;
+      h+='<div style="font-size:8px;text-align:center;padding:0 2px 2px;opacity:0.6">'+li+'</div>';
+    }
     h+='</div>';
   }
   h+='</div>';
@@ -1110,7 +1217,9 @@ function renderQty() {
   // Keyboard input field
   h+='<div style="text-align:center;margin:12px 0">';
   h+='<input class="qty-keyboard-input" id="qty-kb" type="number" inputmode="decimal" step="any" placeholder="0" value="'+quantity+'" oninput="quantity=this.value;renderQtyDisplay()" autofocus>';
-  h+='<div class="qty-unit-label">'+(qtyMode==="kg"?"kg":selItem.unit)+'</div></div>';
+  h+='<div class="qty-unit-label">'+(qtyMode==="kg"?"kg":selItem.unit)+'</div>';
+  if(mode==="out") h+='<div style="text-align:center;margin-top:8px;font-size:12px;color:#8b949e">Available: <strong class="mono" style="color:#58a6ff;font-size:14px">'+selItem.stock+'</strong> '+selItem.unit+'</div>';
+  h+='</div>';
   // Numpad
   h+='<div class="numpad">';
   var keys=["1","2","3","4","5","6","7","8","9",".","0","del"];
@@ -1128,26 +1237,104 @@ function renderQty() {
 function numPadKb(k){var el=document.getElementById("qty-kb");if(!el)return;if(k==="del"){quantity=quantity.slice(0,-1);}else if(k==="."&&quantity.indexOf(".")===-1){quantity+=".";}else if(k!=="."){quantity+=k;}el.value=quantity;}
 function renderQtyDisplay(){var el=document.getElementById("qty-kb");if(el)quantity=el.value;}
 
-function renderCount() {
-  var h=renderHeader((selCat?selCat.name:"")+' \u2014 Count',storage?storage.name:"");
-  var items=ITEMS_DB[selCat.id]||[];
-  h+='<div class="count-list">';
-  if(isAdmin) h+='<button class="add-row" onclick="openAdd()">+ Add New Item</button>';
-  h+='<div class="count-grid">';
-  for(var i=0;i<items.length;i++){var it=items[i];var key=selCat.id+"_"+i;
-    var val=(key in countChanges)?countChanges[key]:it.stock;
-    var changed=(key in countChanges&&countChanges[key]!==it.stock);
-    h+='<div class="count-card'+(changed?" changed":"")+'">';
-    if(manageMode) h+='<div class="tile-del" onclick="openDelete(\''+selCat.id+'\','+i+')">\u2715</div>';
-    if(it.img&&PRODUCT_IMAGES[it.img]) h+='<img src="'+PRODUCT_IMAGES[it.img]+'" style="width:100%;aspect-ratio:1;object-fit:cover;display:block">';
-    else h+='<div class="count-card-emoji">'+it.emoji+'</div>';
-    h+='<div class="count-card-name">'+it.name+'</div>';
-    h+='<input class="count-card-input" type="number" inputmode="decimal" value="'+val+'" onchange="updateCount(\''+selCat.id+'\','+i+',this.value)">';
+function renderAlerts() {
+  var alerts=getAlerts();
+  var zeroN=getZeroCount(),lowN=getLowCount();
+  var h=renderHeader('Stock Alerts','\u26A0\uFE0F '+alerts.length+' items need attention');
+
+  // Filter tabs
+  h+='<div class="alert-filter-bar">';
+  h+='<button class="alert-filter'+(alertFilter==="all"?" active":"")+'" onclick="alertFilter=\'all\';render()" style="'+(alertFilter==="all"?"border-color:rgba(248,81,73,0.4);background:rgba(248,81,73,0.1);color:#f85149":"")+'">All ('+alerts.length+')</button>';
+  h+='<button class="alert-filter'+(alertFilter==="zero"?" active":"")+'" onclick="alertFilter=\'zero\';render()" style="'+(alertFilter==="zero"?"border-color:rgba(248,81,73,0.4);background:rgba(248,81,73,0.1);color:#f85149":"")+'">'+'\u26D4 Out of Stock ('+zeroN+')</button>';
+  h+='<button class="alert-filter'+(alertFilter==="low"?" active":"")+'" onclick="alertFilter=\'low\';render()" style="'+(alertFilter==="low"?"border-color:rgba(210,153,34,0.4);background:rgba(210,153,34,0.1);color:#d29922":"")+'">'+'\u26A0\uFE0F Low ('+lowN+')</button>';
+  h+='</div>';
+
+  // Filtered alerts
+  var filtered=alerts;
+  if(alertFilter==="zero") filtered=alerts.filter(function(a){return a.level==="zero";});
+  else if(alertFilter==="low") filtered=alerts.filter(function(a){return a.level==="low"||a.level==="critical";});
+
+  h+='<div class="alerts-list">';
+  if(filtered.length===0) {
+    h+='<div style="text-align:center;padding:40px 20px;color:#8b949e">';
+    h+='<div style="font-size:48px;margin-bottom:12px">\u2705</div>';
+    h+='<div style="font-size:16px;font-weight:600">All Good!</div>';
+    h+='<div style="font-size:13px;margin-top:4px">No stock alerts in this category</div></div>';
+  }
+
+  for(var i=0;i<filtered.length;i++){
+    var a=filtered[i];
+    var isZero=a.item.stock===0;
+    var isCrit=a.item.stock>0&&a.item.stock<=5;
+    var cls=isZero?"zero":"low";
+    var stockColor=isZero?"#f85149":isCrit?"#f85149":"#d29922";
+    var statusText=isZero?"OUT OF STOCK":isCrit?"CRITICAL":"LOW STOCK";
+
+    h+='<div class="alert-item '+cls+'">';
+    // Image
+    if(a.item.img&&PRODUCT_IMAGES[a.item.img]) h+='<img class="alert-item-img" src="'+PRODUCT_IMAGES[a.item.img]+'">';
+    else h+='<div class="alert-item-emoji">'+a.item.emoji+'</div>';
+    // Info
+    h+='<div class="alert-item-info">';
+    h+='<div class="alert-item-name">'+a.item.name+'</div>';
+    if(a.item.nameEs) h+='<div style="font-size:10px;color:#8b949e;font-style:italic">'+a.item.nameEs+'</div>';
+    h+='<div class="alert-item-cat">'+(a.cat?a.cat.emoji+" "+a.cat.name:"")+'</div>';
+    h+='<div style="margin-top:3px"><span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:'+stockColor+'22;color:'+stockColor+';border:1px solid '+stockColor+'44">'+statusText+'</span></div>';
+    h+='</div>';
+    // Stock number
+    h+='<div class="alert-item-stock">';
+    h+='<div class="alert-item-qty mono" style="color:'+stockColor+'">'+a.item.stock+'</div>';
+    h+='<div class="alert-item-unit">'+a.item.unit+'</div>';
+    h+='</div>';
     h+='</div>';
   }
+
   h+='</div>';
-  var hasC=Object.keys(countChanges).length>0;
-  if(hasC) h+='<button class="confirm-btn blue" style="position:sticky;bottom:12px;margin-top:12px" onclick="saveCount()">\u2705 Save ('+Object.keys(countChanges).length+' changes)</button>';
+  return h;
+}
+
+function renderCount() {
+  var h=renderHeader('Inventory Count','All Products');
+
+  // Category filter tabs
+  h+='<div style="display:flex;gap:4px;padding:8px 10px;max-width:700px;margin:0 auto;overflow-x:auto;-webkit-overflow-scrolling:touch">';
+  h+='<button style="padding:6px 12px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;border:1px solid '+(countFilter==="all"?"rgba(88,166,255,0.4)":"rgba(255,255,255,0.08)")+';background:'+(countFilter==="all"?"rgba(88,166,255,0.12)":"rgba(255,255,255,0.03)")+';color:'+(countFilter==="all"?"#58a6ff":"#8b949e")+'" onclick="countFilter=\'all\';render()">All</button>';
+  for(var ci=0;ci<CATEGORIES.length;ci++){var cat=CATEGORIES[ci];var isActive=countFilter===cat.id;
+    h+='<button style="padding:6px 12px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;border:1px solid '+(isActive?cat.color+"66":"rgba(255,255,255,0.08)")+';background:'+(isActive?cat.color+"20":"rgba(255,255,255,0.03)")+';color:'+(isActive?cat.color:"#8b949e")+'" onclick="countFilter=\''+cat.id+'\';render()">'+cat.emoji+' '+cat.name+'</button>';
+  }
+  h+='</div>';
+
+  // Search
+  h+='<div class="search-bar"><div class="search-wrap"><span class="search-icon">\uD83D\uDD0D</span>';
+  h+='<input class="search-input" style="padding-left:36px" placeholder="Search products..." value="'+searchQuery+'" oninput="setSearch(this.value)"></div></div>';
+
+  // Build all items
+  h+='<div class="count-list"><div class="count-grid">';
+  var totalChanges=0;
+  for(var ci=0;ci<CATEGORIES.length;ci++){
+    var cat=CATEGORIES[ci];
+    if(countFilter!=="all"&&countFilter!==cat.id) continue;
+    var items=ITEMS_DB[cat.id]||[];
+    for(var i=0;i<items.length;i++){var it=items[i];
+      // Search filter
+      if(searchQuery){var q=searchQuery.toLowerCase();
+        if(it.name.toLowerCase().indexOf(q)===-1&&(it.nameEs||"").toLowerCase().indexOf(q)===-1) continue;
+      }
+      var key=cat.id+"|"+i;
+      var val=(key in countChanges)?countChanges[key]:it.stock;
+      var changed=(key in countChanges&&countChanges[key]!==it.stock);
+      if(changed) totalChanges++;
+      h+='<div class="count-card'+(changed?" changed":"")+'">';
+      if(it.img&&PRODUCT_IMAGES[it.img]) h+='<img src="'+PRODUCT_IMAGES[it.img]+'" style="width:100%;aspect-ratio:1;object-fit:cover;display:block;border-radius:10px 10px 0 0">';
+      else h+='<div class="count-card-emoji">'+it.emoji+'</div>';
+      h+='<div class="count-card-name">'+it.name+'</div>';
+      if(it.nameEs) h+='<div style="font-size:8px;color:#8b949e;font-style:italic;text-align:center;padding:0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+it.nameEs+'</div>';
+      h+='<input class="count-card-input" type="number" inputmode="decimal" value="'+val+'" onchange="updateCount(\''+cat.id+'\','+i+',this.value)">';
+      h+='</div>';
+    }
+  }
+  h+='</div>';
+  if(totalChanges>0) h+='<button class="confirm-btn blue" style="position:sticky;bottom:12px;margin-top:12px" onclick="saveCount()">\u2705 Save '+totalChanges+' Changes</button>';
   h+='<div class="timestamp">\uD83D\uDD52 '+now()+'</div></div>';
   return h;
 }
@@ -1216,7 +1403,7 @@ function renderProductList() {
   }
   h+='</div>';
   // Table
-  h+='<div style="overflow-x:auto"><table class="prod-table"><thead><tr><th></th><th>Name</th><th>Spanish</th><th>Cat</th><th>Stock</th><th>Unit</th><th>$</th></tr></thead><tbody>';
+  h+='<div style="overflow-x:auto"><table class="prod-table"><thead><tr><th></th><th>Name</th><th>Spanish</th><th>Locations</th><th>Stock</th><th>$</th><th></th></tr></thead><tbody>';
   var all=allItemsFlat();
   if(searchQuery){var q=searchQuery.toLowerCase();all=all.filter(function(x){return x.item.name.toLowerCase().indexOf(q)!==-1||(x.item.nameEs||"").toLowerCase().indexOf(q)!==-1;});}
   all.sort(function(a,b){var va,vb;
@@ -1228,12 +1415,18 @@ function renderProductList() {
   });
   for(var i=0;i<all.length;i++){var it=all[i].item,cat=all[i].cat;
     var st=it.stock<5?"critical":it.stock<15?"low":"ok";
-    h+='<tr><td>'+itemImg(it,28)+'</td><td style="font-weight:600">'+it.name+'</td><td style="color:#8b949e;font-style:italic">'+(it.nameEs||"")+'</td>';
-    h+='<td style="color:#8b949e">'+(cat?cat.name:"")+'</td><td class="mono" style="font-weight:700"><span class="status-dot status-'+st+'"></span>'+it.stock+'</td>';
-    h+='<td style="color:#8b949e">'+it.unit+'</td><td class="mono">$'+it.price.toFixed(2)+'</td></tr>';
+    // Location icons
+    var locHtml="";
+    if(it.loc&&it.loc.length>0){for(var li=0;li<it.loc.length;li++){for(var si=0;si<STORAGES.length;si++){if(STORAGES[si].id===it.loc[li]){locHtml+='<span title="'+STORAGES[si].name+'" style="font-size:12px">'+STORAGES[si].icon+'</span> ';break;}}}}
+    else locHtml='<span style="color:#484f58;font-size:10px">All</span>';
+    h+='<tr><td>'+itemImg(it,28)+'</td><td style="font-weight:600">'+it.name+'<div style="font-size:10px;color:#8b949e;font-style:italic">'+(it.nameEs||"")+'</div></td>';
+    h+='<td style="font-size:11px">'+locHtml+'</td>';
+    h+='<td class="mono" style="font-weight:700"><span class="status-dot status-'+st+'"></span>'+it.stock+'</td>';
+    h+='<td class="mono">$'+it.price.toFixed(2)+'</td>';
+    h+='<td><button style="padding:4px 8px;border-radius:6px;border:1px solid rgba(88,166,255,0.3);background:rgba(88,166,255,0.08);color:#58a6ff;font-size:10px;font-weight:600;cursor:pointer" onclick="openEdit(\''+all[i].catId+'\','+all[i].idx+')">\u270F</button></td></tr>';
     if(it.subs)for(var s=0;s<it.subs.length;s++){var sub=it.subs[s];
-      h+='<tr style="opacity:0.6"><td>'+(sub.img&&PRODUCT_IMAGES[sub.img]?itemImg(sub,22):'')+'</td><td style="padding-left:24px">\u2514 '+sub.name+'</td><td style="color:#8b949e;font-style:italic">'+(sub.nameEs||"")+'</td>';
-      h+='<td></td><td class="mono">'+sub.stock+'</td><td></td><td class="mono">$'+(sub.price||it.price).toFixed(2)+'</td></tr>';
+      h+='<tr style="opacity:0.6"><td>'+(sub.img&&PRODUCT_IMAGES[sub.img]?itemImg(sub,22):'')+'</td><td style="padding-left:24px">\u2514 '+sub.name+'</td>';
+      h+='<td></td><td class="mono">'+sub.stock+'</td><td class="mono">$'+(sub.price||it.price).toFixed(2)+'</td><td></td></tr>';
     }
   }
   h+='</tbody></table></div>';
@@ -1314,6 +1507,18 @@ function renderPin() {
 function renderSuccess() {
   return '<div class="success-overlay"><div class="success-card"><div style="font-size:56px;margin-bottom:8px">\u2705</div><div style="font-size:20px;font-weight:700;color:#3fb950">Saved!</div><div style="font-size:12px;color:#8b949e;margin-top:4px">'+now()+'</div></div></div>';
 }
+function renderOverstock() {
+  var h='<div class="modal-overlay" onclick="showModal=\'\';render()"><div class="modal-card" onclick="event.stopPropagation()" style="text-align:center">';
+  h+='<div style="font-size:56px;margin-bottom:8px">\u26D4</div>';
+  h+='<div style="font-size:18px;font-weight:700;color:#f85149;margin-bottom:8px">Not Enough Stock</div>';
+  h+='<div style="font-size:14px;color:#e6edf3;margin-bottom:4px">You are trying to remove <strong class="mono" style="color:#f85149">'+quantity+'</strong> '+selItem.unit+'</div>';
+  h+='<div style="font-size:14px;color:#e6edf3;margin-bottom:16px">Available stock: <strong class="mono" style="color:#58a6ff">'+selItem.stock+'</strong> '+selItem.unit+'</div>';
+  h+='<div style="padding:12px;background:rgba(248,81,73,0.08);border-radius:12px;font-size:13px;color:#f85149;margin-bottom:16px;line-height:1.5">Cannot remove more than the current stock quantity.</div>';
+  h+='<div class="btn-row"><button class="btn-cancel" onclick="showModal=\'\';render()">Go Back</button>';
+  h+='<button class="btn-save" style="background:linear-gradient(135deg,#1a6dd4,#388bfd)" onclick="quantity=String(selItem.stock);showModal=\'\';render()">Use Max ('+selItem.stock+')</button></div>';
+  h+='</div></div>';
+  return h;
+}
 function renderAddModal() {
   var h='<div class="modal-overlay" onclick="showModal=\'\';render()"><div class="modal-card" onclick="event.stopPropagation()">';
   h+='<div class="modal-title">\u2795 Add to '+(selCat?selCat.name:"")+'</div>';
@@ -1323,6 +1528,14 @@ function renderAddModal() {
   h+='<select class="form-select" id="add-unit"><option value="kg">kg</option><option value="pcs">pcs</option><option value="L">L</option><option value="g">g</option></select></div>';
   h+='<div class="form-group"><label class="form-label">Stock</label><input class="form-input" id="add-stock" type="number" placeholder="0"></div>';
   h+='<div class="form-group"><label class="form-label">Price</label><input class="form-input" id="add-price" type="number" step="0.01" placeholder="0"></div></div>';
+  // Location checkboxes
+  h+='<div class="form-group"><label class="form-label">Storage Locations</label>';
+  h+='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">';
+  for(var si=0;si<STORAGES.length;si++){var s=STORAGES[si];
+    h+='<label style="display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);font-size:12px;cursor:pointer">';
+    h+='<input type="checkbox" id="add-loc-'+s.id+'" checked style="accent-color:'+s.color+'"> '+s.icon+' '+s.name+'</label>';
+  }
+  h+='</div></div>';
   h+='<div class="btn-row"><button class="btn-cancel" onclick="showModal=\'\';render()">Cancel</button>';
   h+='<button class="btn-save" onclick="saveNewItem()">Add Item</button></div></div></div>';
   return h;
@@ -1336,6 +1549,30 @@ function renderDeleteModal() {
   if(deleteTarget.item.nameEs) h+='<div style="text-align:center;color:#8b949e;font-size:13px;font-style:italic;margin-bottom:16px">'+deleteTarget.item.nameEs+'</div>';
   h+='<div class="btn-row"><button class="btn-cancel" onclick="showModal=\'\';deleteTarget=null;render()">Cancel</button>';
   h+='<button class="btn-delete" style="flex:1" onclick="confirmDelete()">\uD83D\uDDD1 Remove</button></div></div></div>';
+  return h;
+}
+function renderEditModal() {
+  if(!editTarget) return '';
+  var it=editTarget.item;
+  var h='<div class="modal-overlay" onclick="showModal=\'\';editTarget=null;render()"><div class="modal-card" onclick="event.stopPropagation()">';
+  h+='<div class="modal-title">\u270F\uFE0F Edit Item</div>';
+  h+='<div style="text-align:center;padding:8px 0">'+itemImg(it,56)+'</div>';
+  h+='<div class="form-group"><label class="form-label">Name (English)</label><input class="form-input" id="edit-name" value="'+it.name+'"></div>';
+  h+='<div class="form-group"><label class="form-label">Name (Spanish)</label><input class="form-input" id="edit-name-es" value="'+(it.nameEs||"")+'"></div>';
+  h+='<div class="form-row"><div class="form-group"><label class="form-label">Unit</label>';
+  h+='<select class="form-select" id="edit-unit"><option value="kg"'+(it.unit==="kg"?" selected":"")+'>kg</option><option value="pcs"'+(it.unit==="pcs"?" selected":"")+'>pcs</option><option value="L"'+(it.unit==="L"?" selected":"")+'>L</option><option value="g"'+(it.unit==="g"?" selected":"")+'>g</option></select></div>';
+  h+='<div class="form-group"><label class="form-label">Price</label><input class="form-input" id="edit-price" type="number" step="0.01" value="'+it.price+'"></div></div>';
+  // Location checkboxes
+  h+='<div class="form-group"><label class="form-label">Storage Locations</label>';
+  h+='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">';
+  var itemLocs=it.loc||[];
+  for(var si=0;si<STORAGES.length;si++){var s=STORAGES[si];var isChecked=itemLocs.indexOf(s.id)!==-1;
+    h+='<label style="display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:10px;border:1px solid '+(isChecked?s.color+"44":"rgba(255,255,255,0.08)")+';background:'+(isChecked?s.color+"15":"rgba(255,255,255,0.03)")+';font-size:12px;cursor:pointer;transition:all 0.15s">';
+    h+='<input type="checkbox" id="edit-loc-'+s.id+'"'+(isChecked?" checked":"")+' style="accent-color:'+s.color+'"> '+s.icon+' '+s.name+'</label>';
+  }
+  h+='</div></div>';
+  h+='<div class="btn-row"><button class="btn-cancel" onclick="showModal=\'\';editTarget=null;render()">Cancel</button>';
+  h+='<button class="btn-save" onclick="saveEditItem()">\u2705 Save Changes</button></div></div></div>';
   return h;
 }
 function renderInvoiceModal() {
