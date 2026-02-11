@@ -423,6 +423,22 @@ input,select,textarea{font-family:inherit;color:inherit}
 .fab-search{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#1a6dd4,#388bfd);color:#fff;font-size:22px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 24px rgba(56,139,253,0.4);z-index:100;cursor:pointer;border:none;transition:all 0.2s}
 .fab-search:active{transform:scale(0.9);box-shadow:0 3px 12px rgba(56,139,253,0.3)}
 
+
+/* ===== TILE TIMESTAMPS ===== */
+.tile-ts{font-size:7px;color:#484f58;text-align:center;padding:1px 4px 3px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile-ts span{color:#3fb950}
+.tile-ts .out{color:#f85149}
+/* ===== ARCHIVE ===== */
+.arc-filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.arc-input{padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);font-size:12px;color:#e6edf3;outline:none;font-family:inherit}
+.arc-input:focus{border-color:rgba(88,166,255,0.5)}
+.arc-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:12px;transition:background 0.1s}
+.arc-row:hover{background:rgba(255,255,255,0.02)}
+.arc-mode{padding:2px 7px;border-radius:6px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.03em}
+.arc-summary{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:14px}
+.arc-sum-card{padding:14px;border-radius:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);text-align:center}
+.arc-sum-val{font-size:20px;font-weight:800;margin-bottom:2px}
+.arc-sum-lbl{font-size:9px;color:#484f58;text-transform:uppercase;font-weight:700;letter-spacing:0.05em}
 </style>
 </head>
 <body>
@@ -671,6 +687,25 @@ var scanningBarcode = false;
 var lastBarcode = "";
 
 
+
+// Archive — persistent transaction history
+var archive = JSON.parse(localStorage.getItem("invArchive")||"[]");
+function archivePush(entry){
+  entry.id="tx_"+Date.now()+"_"+Math.random().toString(36).substr(2,4);
+  entry.ts=new Date().toISOString();
+  archive.push(entry);
+  try{localStorage.setItem("invArchive",JSON.stringify(archive));}catch(e){
+    // If storage full, trim oldest 20%
+    archive=archive.slice(Math.floor(archive.length*0.2));
+    try{localStorage.setItem("invArchive",JSON.stringify(archive));}catch(e2){}
+  }
+}
+function nowShort(){var d=new Date();return (d.getDate()+"").padStart(2,"0")+"/"+(d.getMonth()+1+"").padStart(2,"0")+" "+d.toTimeString().substr(0,5);}
+// Archive filter state
+var arcDateFrom="";
+var arcDateTo="";
+var arcModeFilter="all";
+var arcSearchQ="";
 // Transfer
 var transferFrom = null;
 var transferTo = null;
@@ -1047,9 +1082,11 @@ function confirmQty() {
   if(!quantity||parseFloat(quantity)===0)return;
   var q=parseFloat(quantity);
   if(mode==="out"&&q>selItem.stock){showModal="overstock";render();return;}
-  if(mode==="out") selItem.stock=selItem.stock-q;
-  else if(mode==="in") selItem.stock+=q;
-  txLog.push({item:selItem.name,mode:mode,qty:q,unit:qtyMode==="kg"?"kg":selItem.unit,storage:storage?storage.name:"",time:now(),reason:mode==="out"?stockOutReason:""});
+  if(mode==="out"){selItem.stock=selItem.stock-q;selItem.lastOut=nowShort();}
+  else if(mode==="in"){selItem.stock+=q;selItem.lastIn=nowShort();}
+  var _txEntry={item:selItem.name,mode:mode,qty:q,unit:qtyMode==="kg"?"kg":selItem.unit,storage:storage?storage.name:"",time:now(),reason:mode==="out"?stockOutReason:""};
+  txLog.push(_txEntry);
+  archivePush({item:selItem.name,itemId:selItem.id||"",cat:selCat?selCat.name:"",mode:mode,qty:q,unit:qtyMode==="kg"?"kg":selItem.unit,price:selItem.price||0,total:q*(selItem.price||0),storage:storage?storage.name:"",reason:mode==="out"?stockOutReason:"",stockAfter:selItem.stock});
   // Track last used items
   if(selItem&&selCat){var luEntry={catId:selCat.id,itemId:selItem.id,name:selItem.name,emoji:selItem.emoji||selCat.emoji};
     lastUsedItems=lastUsedItems.filter(function(x){return x.itemId!==selItem.id;});
@@ -1064,8 +1101,10 @@ function confirmQty() {
 function updateCount(catId,idx,val) { countChanges[catId+"|"+idx]=parseFloat(val)||0; }
 function saveCount() {
   for(var k in countChanges){var sep=k.lastIndexOf("|");var ci=k.substring(0,sep),idx=parseInt(k.substring(sep+1));
+    var _oldStock=ITEMS_DB[ci][idx].stock;
     ITEMS_DB[ci][idx].stock=countChanges[k];
     txLog.push({item:ITEMS_DB[ci][idx].name,mode:"count",qty:countChanges[k],unit:ITEMS_DB[ci][idx].unit,storage:"",time:now()});
+    archivePush({item:ITEMS_DB[ci][idx].name,itemId:ITEMS_DB[ci][idx].id||"",cat:"",mode:"count",qty:countChanges[k],unit:ITEMS_DB[ci][idx].unit,price:0,total:0,storage:"",reason:"count adj (was "+_oldStock+")",stockAfter:countChanges[k]});
   }
   countChanges={};showModal="success";render();setTimeout(function(){showModal="";render();},1200);
 }
@@ -1166,6 +1205,7 @@ function filteredItems(catId) {
     if(sortBy==="name"){va=a.name.toLowerCase();vb=b.name.toLowerCase();}
     else if(sortBy==="stock"){va=a.stock;vb=b.stock;}
     else if(sortBy==="price"){va=a.price;vb=b.price;}
+    else if(sortBy==="lastIn"){va=a.lastIn||"";vb=b.lastIn||"";}
     else{va=a.name.toLowerCase();vb=b.name.toLowerCase();}
     if(va<vb) return sortDir==="asc"?-1:1;
     if(va>vb) return sortDir==="asc"?1:-1;
@@ -1486,7 +1526,10 @@ function toggleScanItem(i){scanResults[i].include=!scanResults[i].include;render
 function updateScanQty(i,v){scanResults[i].qty=parseFloat(v)||0;render();}
 function confirmScanResults(){
   var added=0;for(var i=0;i<scanResults.length;i++){var r=scanResults[i];if(!r.include||r.qty<=0||!r.matchedItem)continue;
-    r.matchedItem.stock+=r.qty;txLog.push({item:r.matchedItem.name,mode:"in",qty:r.qty,unit:r.matchedItem.unit,storage:storage?storage.name:"",time:now(),source:"invoice"});added++;}
+    r.matchedItem.stock+=r.qty;r.matchedItem.lastIn=nowShort();
+    txLog.push({item:r.matchedItem.name,mode:"in",qty:r.qty,unit:r.matchedItem.unit,storage:storage?storage.name:"",time:now(),source:"invoice"});
+    archivePush({item:r.matchedItem.name,itemId:r.matchedItem.id||"",cat:"",mode:"in",qty:r.qty,unit:r.matchedItem.unit,price:r.matchedItem.price||0,total:r.qty*(r.matchedItem.price||0),storage:storage?storage.name:"",reason:"invoice",stockAfter:r.matchedItem.stock});
+    added++;}
   scanState="idle";showModal="success";render();setTimeout(function(){showModal="";screen="storage";render();},1500);
 }
 function openInvoice(){startScan();}
@@ -1711,7 +1754,7 @@ function renderItems() {
   h+='<button class="scan-barcode-btn" onclick="startBarcodeScan()">\uD83D\uDCF2</button></div>';
   // Sort bar
   h+='<div class="sort-bar">';
-  var sortOpts2=[["name","A-Z"],["stock","\uD83D\uDCE6 Stock"],["price","\uD83D\uDCB2 Price"]];
+  var sortOpts2=[["name","A-Z"],["stock","\uD83D\uDCE6 Stock"],["price","\uD83D\uDCB2 Price"],["lastIn","\uD83D\uDCE5 Last In"]];
   for(var si=0;si<sortOpts2.length;si++){var sActive=sortBy===sortOpts2[si][0];
     h+='<button class="sort-pill'+(sActive?' active':'')+'" onclick="setSort(\''+sortOpts2[si][0]+'\')">'+sortOpts2[si][1]+(sActive?(sortDir==="asc"?" \u2191":" \u2193"):"")+'</button>';}
   h+='</div>';
@@ -1735,6 +1778,13 @@ function renderItems() {
     // Name
     h+='<div class="tile-name">'+it.name+'</div>';
     if(it.nameEs) h+='<div class="tile-name-es">'+it.nameEs+'</div>';
+    // Timestamps
+    if(it.lastIn||it.lastOut){
+      h+='<div class="tile-ts">';
+      if(it.lastIn) h+='<span>\u2B07'+it.lastIn+'</span> ';
+      if(it.lastOut) h+='<span class="out">\u2B06'+it.lastOut+'</span>';
+      h+='</div>';
+    }
     // Location icons
     if(it.loc&&it.loc.length>0&&it.loc.length<5){var li='';for(var lx=0;lx<it.loc.length;lx++)for(var sx=0;sx<STORAGES.length;sx++)if(STORAGES[sx].id===it.loc[lx])li+=STORAGES[sx].icon;
       h+='<div style="font-size:8px;text-align:center;padding:0 2px 2px;opacity:0.6">'+li+'</div>';
@@ -1909,10 +1959,11 @@ function renderCount() {
 function renderAdmin() {
   var h=renderHeader("Admin Panel","\u2699\uFE0F Management");
   h+='<div class="admin-nav">';
-  var tabs=[["dashboard","\uD83D\uDCCA Dashboard"],["products","\uD83D\uDCE6 Products"],["variance","\uD83D\uDCCA Variance"],["export","\uD83D\uDCE5 Export"],["api","\uD83D\uDD17 API"],["ai","\uD83E\uDDE0 AI Tools"],["system","\u2699\uFE0F System"]];
+  var tabs=[["dashboard","\uD83D\uDCCA Dashboard"],["products","\uD83D\uDCE6 Products"],["archive","\uD83D\uDCC5 Archive"],["variance","\uD83D\uDCCA Variance"],["export","\uD83D\uDCE5 Export"],["api","\uD83D\uDD17 API"],["ai","\uD83E\uDDE0 AI Tools"],["system","\u2699\uFE0F System"]];
   for(var i=0;i<tabs.length;i++) h+='<button class="admin-tab'+(adminTab===tabs[i][0]?' active':'')+'" onclick="adminTab=\''+tabs[i][0]+'\';render()">'+tabs[i][1]+'</button>';
   h+='</div><div class="admin-section">';
   if(adminTab==="dashboard") h+=renderDashboard();
+  else if(adminTab==="archive") h+=renderArchive();
   else if(adminTab==="variance") h+=renderVariance();
   else if(adminTab==="products") h+=renderProductList();
   else if(adminTab==="export") h+=renderExport();
@@ -2527,6 +2578,113 @@ function dismissInstall(){installOverlay.style.display="none";localStorage.setIt
 function doInstall(){if(deferredPrompt){deferredPrompt.prompt();deferredPrompt=null;}dismissInstall();}
 
 
+
+// ========== ARCHIVE ==========
+function renderArchive(){
+  var h='<div style="font-size:15px;font-weight:700;margin-bottom:4px">\uD83D\uDCC5 Transaction Archive</div>';
+  h+='<div style="font-size:12px;color:#8b949e;margin-bottom:14px">Full history of all inventory movements — for annual tracking & reports</div>';
+
+  // Filters
+  h+='<div class="arc-filters">';
+  h+='<input type="date" class="arc-input" value="'+arcDateFrom+'" onchange="arcDateFrom=this.value;render()" title="From date">';
+  h+='<span style="color:#484f58;font-size:12px">\u2192</span>';
+  h+='<input type="date" class="arc-input" value="'+arcDateTo+'" onchange="arcDateTo=this.value;render()" title="To date">';
+  h+='<select class="arc-input" onchange="arcModeFilter=this.value;render()">';
+  h+='<option value="all"'+(arcModeFilter==="all"?" selected":"")+'>All Types</option>';
+  h+='<option value="in"'+(arcModeFilter==="in"?" selected":"")+'>\uD83D\uDCE5 Stock In</option>';
+  h+='<option value="out"'+(arcModeFilter==="out"?" selected":"")+'>\uD83D\uDCE4 Stock Out</option>';
+  h+='<option value="count"'+(arcModeFilter==="count"?" selected":"")+'>\uD83D\uDCCB Count</option>';
+  h+='<option value="transfer"'+(arcModeFilter==="transfer"?" selected":"")+'>\uD83D\uDD04 Transfer</option>';
+  h+='</select>';
+  h+='<input class="arc-input" style="flex:1;min-width:120px" placeholder="\uD83D\uDD0D Search item..." value="'+arcSearchQ+'" oninput="arcSearchQ=this.value;render()">';
+  h+='</div>';
+
+  // Filter archive
+  var filtered=archive.filter(function(a){
+    if(arcModeFilter!=="all"&&a.mode!==arcModeFilter) return false;
+    if(arcSearchQ){var q=arcSearchQ.toLowerCase();if((a.item||"").toLowerCase().indexOf(q)===-1) return false;}
+    if(arcDateFrom&&a.ts){if(a.ts.substring(0,10)<arcDateFrom) return false;}
+    if(arcDateTo&&a.ts){if(a.ts.substring(0,10)>arcDateTo) return false;}
+    return true;
+  });
+
+  // Summary cards
+  var sumIn=0,sumOut=0,sumInVal=0,sumOutVal=0,sumWaste=0;
+  for(var i=0;i<filtered.length;i++){var a=filtered[i];
+    if(a.mode==="in"){sumIn+=a.qty;sumInVal+=(a.total||0);}
+    if(a.mode==="out"){sumOut+=a.qty;sumOutVal+=(a.total||0);
+      if(a.reason==="waste"||a.reason==="spoiled") sumWaste+=a.qty;
+    }
+  }
+  h+='<div class="arc-summary">';
+  h+='<div class="arc-sum-card"><div class="arc-sum-val mono" style="color:#3fb950">'+sumIn.toFixed(1)+'</div><div class="arc-sum-lbl">Total In</div></div>';
+  h+='<div class="arc-sum-card"><div class="arc-sum-val mono" style="color:#f85149">'+sumOut.toFixed(1)+'</div><div class="arc-sum-lbl">Total Out</div></div>';
+  h+='<div class="arc-sum-card"><div class="arc-sum-val mono" style="color:#3fb950">$'+sumInVal.toFixed(0)+'</div><div class="arc-sum-lbl">Value In</div></div>';
+  h+='<div class="arc-sum-card"><div class="arc-sum-val mono" style="color:#f85149">$'+sumOutVal.toFixed(0)+'</div><div class="arc-sum-lbl">Value Out</div></div>';
+  h+='<div class="arc-sum-card"><div class="arc-sum-val mono" style="color:#d29922">'+sumWaste.toFixed(1)+'</div><div class="arc-sum-lbl">Waste/Spoil</div></div>';
+  h+='<div class="arc-sum-card"><div class="arc-sum-val mono" style="color:#58a6ff">'+filtered.length+'</div><div class="arc-sum-lbl">Transactions</div></div>';
+  h+='</div>';
+
+  // Export button
+  h+='<div style="display:flex;gap:8px;margin-bottom:14px">';
+  h+='<button class="confirm-btn green" style="flex:1;margin:0;padding:10px" onclick="exportArchiveCSV()">\uD83D\uDCE5 Export CSV</button>';
+  h+='<button class="sort-pill" style="padding:10px 16px" onclick="if(confirm(\'Clear all archive data? This cannot be undone.\')){archive=[];localStorage.removeItem(\'invArchive\');render();}">\uD83D\uDDD1 Clear</button>';
+  h+='</div>';
+
+  // Transaction list
+  h+='<div style="max-height:400px;overflow-y:auto;border-radius:12px;border:1px solid rgba(255,255,255,0.06)">';
+  var reversed=filtered.slice().reverse();
+  for(var i=0;i<Math.min(reversed.length,200);i++){var a=reversed[i];
+    var mc=a.mode==="in"?"#3fb950":a.mode==="out"?"#f85149":a.mode==="transfer"?"#a78bfa":"#58a6ff";
+    var mIcon=a.mode==="in"?"\uD83D\uDCE5":a.mode==="out"?"\uD83D\uDCE4":a.mode==="transfer"?"\uD83D\uDD04":"\uD83D\uDCCB";
+    var sign=a.mode==="in"?"+":a.mode==="out"?"-":"=";
+    var dateStr=a.ts?new Date(a.ts).toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"2-digit"}):"";
+    var timeStr=a.ts?new Date(a.ts).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"";
+    h+='<div class="arc-row">';
+    h+='<div style="font-size:16px;width:22px;text-align:center">'+mIcon+'</div>';
+    h+='<div style="flex:1"><div style="font-weight:600">'+a.item+'</div>';
+    h+='<div style="font-size:10px;color:#484f58">'+(a.storage||"")+(a.reason&&a.reason!=="used"?" \u00B7 "+a.reason:"")+(a.cat?" \u00B7 "+a.cat:"")+'</div></div>';
+    h+='<div style="text-align:right;min-width:60px"><div class="mono" style="font-weight:700;color:'+mc+'">'+sign+a.qty+' '+a.unit+'</div>';
+    if(a.total>0) h+='<div style="font-size:9px;color:#484f58">$'+a.total.toFixed(2)+'</div>';
+    h+='</div>';
+    h+='<div style="text-align:right;min-width:55px;font-size:10px;color:#484f58"><div>'+dateStr+'</div><div>'+timeStr+'</div></div>';
+    h+='</div>';
+  }
+  if(filtered.length>200) h+='<div style="text-align:center;padding:12px;color:#484f58;font-size:11px">Showing 200 of '+filtered.length+' — export CSV for full data</div>';
+  if(filtered.length===0) h+='<div style="text-align:center;padding:30px;color:#484f58;font-size:13px">No transactions found. Start using Stock In/Out to build your archive.</div>';
+  h+='</div>';
+  return h;
+}
+
+function exportArchiveCSV(){
+  var filtered=archive.filter(function(a){
+    if(arcModeFilter!=="all"&&a.mode!==arcModeFilter) return false;
+    if(arcSearchQ&&(a.item||"").toLowerCase().indexOf(arcSearchQ.toLowerCase())===-1) return false;
+    if(arcDateFrom&&a.ts&&a.ts.substring(0,10)<arcDateFrom) return false;
+    if(arcDateTo&&a.ts&&a.ts.substring(0,10)>arcDateTo) return false;
+    return true;
+  });
+  var csv="Date,Time,Type,Item,Category,Qty,Unit,Price,Total,Storage,Reason,Stock After\n";
+  for(var i=0;i<filtered.length;i++){var a=filtered[i];
+    var d=a.ts?new Date(a.ts):new Date();
+    csv+=d.toLocaleDateString("en-GB")+",";
+    csv+=d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})+",";
+    csv+=a.mode+",";
+    csv+='"'+(a.item||"").replace(/"/g,'""')+'",';
+    csv+='"'+(a.cat||"")+'",';
+    csv+=a.qty+","+a.unit+",";
+    csv+=(a.price||0)+","+(a.total||0)+",";
+    csv+='"'+(a.storage||"")+'",';
+    csv+='"'+(a.reason||"")+'",';
+    csv+=(a.stockAfter!=null?a.stockAfter:"")+"\n";
+  }
+  var blob=new Blob([csv],{type:"text/csv"});
+  var url=URL.createObjectURL(blob);
+  var link=document.createElement("a");
+  link.href=url;link.download="inventory-archive-"+new Date().toISOString().substr(0,10)+".csv";
+  link.click();URL.revokeObjectURL(url);
+}
+
 // ========== STOCK TRANSFER ==========
 function renderTransfer() {
   var h=renderHeader("Stock Transfer","\uD83D\uDD04 Move between locations");
@@ -2580,6 +2738,7 @@ function executeTransfer(){
       if(!all[i].item.loc) all[i].item.loc=[];
       if(all[i].item.loc.indexOf(transferTo.id)===-1) all[i].item.loc.push(transferTo.id);
       txLog.push({item:all[i].item.name,mode:"transfer",qty:q,unit:all[i].item.unit,storage:transferFrom.name+" \u2192 "+transferTo.name,time:now(),reason:""});
+      archivePush({item:all[i].item.name,itemId:all[i].item.id||"",cat:"",mode:"transfer",qty:q,unit:all[i].item.unit,price:0,total:0,storage:transferFrom.name+" \u2192 "+transferTo.name,reason:"transfer",stockAfter:all[i].item.stock});
       moved++;
     }
   }
@@ -2696,7 +2855,7 @@ function printCountSheet(){
   var locName=countSheetLoc==="all"?"All Locations":"";
   for(var si=0;si<STORAGES.length;si++) if(STORAGES[si].id===countSheetLoc) locName=STORAGES[si].name;
   var pw=window.open("","_blank","width=600,height=800");
-  var html='<html><head><title>Count Sheet - '+locName+'</title><style>body{font-family:Arial,sans-serif;padding:20px;font-size:12px}h1{font-size:18px;margin-bottom:4px}h3{font-size:13px;color:#666;margin:12px 0 4px;border-bottom:1px solid #ccc;padding-bottom:2px}table{width:100%;border-collapse:collapse}td{padding:4px 6px;border-bottom:1px solid #eee}.qty{width:60px;border:1px solid #999;text-align:center;height:22px}@media print{.no-print{display:none}}</style></head><body>';
+  var html='<html><head><title>Count Sheet - '+locName+'<\/title><style>body{font-family:Arial,sans-serif;padding:20px;font-size:12px}h1{font-size:18px;margin-bottom:4px}h3{font-size:13px;color:#666;margin:12px 0 4px;border-bottom:1px solid #ccc;padding-bottom:2px}table{width:100%;border-collapse:collapse}td{padding:4px 6px;border-bottom:1px solid #eee}.qty{width:60px;border:1px solid #999;text-align:center;height:22px}@media print{.no-print{display:none}}<\/style><\/head><body>';
   html+='<h1>\uD83D\uDCCB Count Sheet \u2014 '+locName+'</h1>';
   html+='<p style="color:#666">Date: '+now()+'</p>';
   html+='<button class="no-print" onclick="window.print()">\uD83D\uDDA8 Print</button><hr>';
@@ -2788,6 +2947,12 @@ function renderItemHistory(){
   if(it.nameEs) h+='<div style="font-size:12px;color:#8b949e;font-style:italic">'+it.nameEs+'</div>';
   var sc3=it.stock<=(it.alertCrit||5)?"#f85149":it.stock<=(it.alertLow||15)?"#d29922":"#3fb950";
   h+='<div style="margin-top:4px;font-size:11px;color:#484f58">Current stock: <span class="mono" style="color:'+sc3+';font-size:14px;font-weight:800">'+it.stock+'</span> '+it.unit+'</div>';
+  if(it.lastIn||it.lastOut){
+    h+='<div style="margin-top:4px;display:flex;gap:10px;font-size:10px">';
+    if(it.lastIn) h+='<span style="color:#3fb950">\uD83D\uDCE5 In: '+it.lastIn+'</span>';
+    if(it.lastOut) h+='<span style="color:#f85149">\uD83D\uDCE4 Out: '+it.lastOut+'</span>';
+    h+='</div>';
+  }
   h+='</div></div>';
   // Filter transactions for this item
   var itemTxs=txLog.filter(function(tx){return tx.item===it.name;}).reverse();
@@ -2917,7 +3082,7 @@ function renderVariance(){
   }
   // Table
   if(sorted.length>0){
-    h+='<div style="overflow-x:auto"><table class="prod-table"><thead><tr><th></th><th>Item</th><th>In</th><th>Out</th><th>Expected</th><th>Actual</th><th>Var.</th></tr></thead><tbody>';
+    h+='<div style="overflow-x:auto"><table class="prod-table"><thead><tr><th></th><th>Item</th><th>Last In</th><th>Last Out</th><th>In</th><th>Out</th><th>Expected</th><th>Actual</th><th>Var.</th></tr></thead><tbody>';
     for(var i=0;i<sorted.length;i++){var v=sorted[i];
       var vc=v.variance<0?"#f85149":v.variance>0?"#3fb950":"#8b949e";
       h+='<tr class="'+(v.variance<0?"var-row negative":"var-row")+'">';
