@@ -289,6 +289,39 @@ input,select,textarea{font-family:inherit;color:inherit}
 .alert-filter{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);color:#8b949e;transition:all 0.15s}
 .alert-filter.active{border-color:rgba(248,81,73,0.4);background:rgba(248,81,73,0.1);color:#f85149}
 
+/* ===== BARCODE SCANNER ===== */
+.barcode-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.barcode-video{width:90%;max-width:400px;border-radius:16px;border:2px solid rgba(88,166,255,0.4)}
+.barcode-guide{position:absolute;width:70%;max-width:280px;height:100px;border:2px solid #3fb950;border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.5)}
+.barcode-status{color:#fff;font-size:14px;margin-top:16px;text-align:center}
+.barcode-result{padding:12px 20px;border-radius:12px;background:rgba(63,185,80,0.1);border:1px solid rgba(63,185,80,0.3);color:#3fb950;font-size:16px;font-weight:700;margin-top:12px;font-family:monospace}
+.barcode-btn{padding:10px 24px;border-radius:12px;font-size:14px;font-weight:600;margin-top:16px;border:none;cursor:pointer}
+.scan-barcode-btn{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:10px;border:1px solid rgba(88,166,255,0.25);background:rgba(88,166,255,0.06);color:#58a6ff;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s}
+.scan-barcode-btn:active{transform:scale(0.95);background:rgba(88,166,255,0.15)}
+
+/* External scanner toast */
+.ext-scan-toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:300;padding:12px 20px;border-radius:14px;display:flex;align-items:center;gap:10px;animation:toastIn 0.3s ease;min-width:280px;max-width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.5)}
+.ext-scan-toast.success{background:rgba(14,17,23,0.96);border:1px solid rgba(63,185,80,0.4)}
+.ext-scan-toast.fail{background:rgba(14,17,23,0.96);border:1px solid rgba(248,81,73,0.4)}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+.scanner-status-bar{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:10px;font-size:11px;font-weight:600}
+.scanner-status-bar.active{background:rgba(63,185,80,0.08);border:1px solid rgba(63,185,80,0.15);color:#3fb950}
+.scanner-status-bar.inactive{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);color:#484f58}
+.scanner-pulse{width:8px;height:8px;border-radius:50%;background:#3fb950;animation:scanPulse 2s ease-in-out infinite}
+@keyframes scanPulse{0%,100%{box-shadow:0 0 0 0 rgba(63,185,80,0.4)}50%{box-shadow:0 0 0 6px rgba(63,185,80,0)}}
+
+/* ===== AI UPDATES ===== */
+.ai-update-card{padding:14px;border-radius:14px;border:1px solid rgba(139,92,246,0.15);background:rgba(139,92,246,0.04);margin-bottom:8px}
+.ai-update-title{font-size:13px;font-weight:700;color:#a78bfa;margin-bottom:4px}
+.ai-update-body{font-size:12px;color:#c9d1d9;line-height:1.5}
+.ai-update-date{font-size:10px;color:#484f58;margin-top:6px}
+.ai-pulse{animation:aiPulse 2s ease-in-out infinite}
+@keyframes aiPulse{0%,100%{opacity:1}50%{opacity:0.5}}
+
+/* ===== MIGRATION ===== */
+.export-card{padding:16px;border-radius:14px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02);margin-bottom:10px;cursor:pointer;transition:all 0.15s}
+.export-card:active{transform:scale(0.98);background:rgba(255,255,255,0.04)}
+
 </style>
 </head>
 <body>
@@ -400,107 +433,107 @@ var CATEGORIES = [
 
 var ITEMS_DB = {
   fruits:[
-    {id:"f1",name:"Apples",nameEs:"Manzanas",img:"apples_5",emoji:"\uD83C\uDF4E",unit:"kg",stock:45,price:3.2,loc:["fridge","kitchen"],subs:[]},
-    {id:"f2",name:"Clementines",nameEs:"Clementinas",img:"clemintines_7",emoji:"\uD83C\uDF4A",unit:"kg",stock:30,price:2.5,loc:["fridge","kitchen"],subs:[]},
-    {id:"f3",name:"Dragon Fruit",nameEs:"Pitahaya",img:"dragon_fruit_16",emoji:"\uD83D\uDC09",unit:"pcs",stock:12,price:6.0,loc:["fridge","kitchen"],subs:[]},
-    {id:"f4",name:"Grapefruit",nameEs:"Toronja",img:"grapefruit___pink_8",emoji:"\uD83C\uDF4A",unit:"pcs",stock:25,price:1.8,loc:["fridge","kitchen"],subs:[
+    {id:"f1",name:"Apples",nameEs:"Manzanas",img:"apples_5",emoji:"\uD83C\uDF4E",unit:"kg",stock:45,price:3.2,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]},
+    {id:"f2",name:"Clementines",nameEs:"Clementinas",img:"clemintines_7",emoji:"\uD83C\uDF4A",unit:"kg",stock:30,price:2.5,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]},
+    {id:"f3",name:"Dragon Fruit",nameEs:"Pitahaya",img:"dragon_fruit_16",emoji:"\uD83D\uDC09",unit:"pcs",stock:12,price:6.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]},
+    {id:"f4",name:"Grapefruit",nameEs:"Toronja",img:"grapefruit___pink_8",emoji:"\uD83C\uDF4A",unit:"pcs",stock:25,price:1.8,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[
       {id:"f4a",name:"Pink Grapefruit",nameEs:"Toronja Rosada",stock:15,price:2.0},
       {id:"f4b",name:"White Grapefruit",nameEs:"Toronja Blanca",stock:10,price:1.5}
     ]},
-    {id:"f5",name:"Grapes",nameEs:"Uvas",img:"grapes_15",emoji:"\uD83C\uDF47",unit:"kg",stock:18,price:4.5,loc:["fridge","kitchen"],subs:[
+    {id:"f5",name:"Grapes",nameEs:"Uvas",img:"grapes_15",emoji:"\uD83C\uDF47",unit:"kg",stock:18,price:4.5,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[
       {id:"f5a",name:"Red Grapes",nameEs:"Uvas Rojas",stock:10,price:4.5},
       {id:"f5b",name:"Green Grapes",nameEs:"Uvas Verdes",stock:8,price:4.5}
     ]},
-    {id:"f6",name:"Lemons",nameEs:"Limones",img:"lemon_9",emoji:"\uD83C\uDF4B",unit:"pcs",stock:80,price:0.5,loc:["fridge","kitchen"],subs:[]},
-    {id:"f7",name:"Mangoes",nameEs:"Mangos",img:"mango_11",emoji:"\uD83E\uDD6D",unit:"pcs",stock:22,price:2.0,loc:["fridge","kitchen"],subs:[]},
-    {id:"f8",name:"Pineapple",nameEs:"Pi\u00f1a",img:"pineapple__golden_13",emoji:"\uD83C\uDF4D",unit:"pcs",stock:8,price:3.5,loc:["fridge","kitchen"],subs:[]},
-    {id:"f9",name:"Pink Pineapple",nameEs:"Pi\u00f1a Rosa",img:"pink_pinapple_36",emoji:"\uD83C\uDF4D",unit:"pcs",stock:5,price:8.0,loc:["fridge","kitchen"],subs:[]}
+    {id:"f6",name:"Lemons",nameEs:"Limones",img:"lemon_9",emoji:"\uD83C\uDF4B",unit:"pcs",stock:80,price:0.5,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]},
+    {id:"f7",name:"Mangoes",nameEs:"Mangos",img:"mango_11",emoji:"\uD83E\uDD6D",unit:"pcs",stock:22,price:2.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]},
+    {id:"f8",name:"Pineapple",nameEs:"Pi\u00f1a",img:"pineapple__golden_13",emoji:"\uD83C\uDF4D",unit:"pcs",stock:8,price:3.5,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]},
+    {id:"f9",name:"Pink Pineapple",nameEs:"Pi\u00f1a Rosa",img:"pink_pinapple_36",emoji:"\uD83C\uDF4D",unit:"pcs",stock:5,price:8.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]}
   ],
   vegetables:[
-    {id:"v1",name:"Avocado",nameEs:"Aguacate",img:"avocado_17",emoji:"\uD83E\uDD51",unit:"pcs",stock:35,price:2.0,loc:["fridge","kitchen"],subs:[]},
-    {id:"v2",name:"Beets",nameEs:"Remolachas",img:"beets_18",emoji:"\uD83E\uDD6C",unit:"kg",stock:20,price:2.5,loc:["fridge","kitchen"],subs:[]},
-    {id:"v3",name:"Carrots",nameEs:"Zanahorias",img:"carrots_19",emoji:"\uD83E\uDD55",unit:"kg",stock:28,price:1.5,loc:["fridge","kitchen"],subs:[]},
-    {id:"v4",name:"Eggplant",nameEs:"Berenjena",img:"eggplant_italian_23",emoji:"\uD83C\uDF46",unit:"pcs",stock:18,price:2.8,loc:["fridge","kitchen"],subs:[]},
-    {id:"v5",name:"Garlic",nameEs:"Ajo",img:"garlic_24",emoji:"\uD83E\uDDC4",unit:"kg",stock:15,price:8.0,loc:["dry","kitchen"],subs:[]},
-    {id:"v7",name:"Leek",nameEs:"Puerro",img:"leek_26",emoji:"\uD83E\uDD6C",unit:"pcs",stock:15,price:2.0,loc:["fridge","kitchen"],subs:[]},
-    {id:"v8",name:"Mushrooms",nameEs:"Champi\u00f1ones",img:"mushroom__button_27",emoji:"\uD83C\uDF44",unit:"kg",stock:12,price:5.0,loc:["fridge","kitchen"],subs:[
+    {id:"v1",name:"Avocado",nameEs:"Aguacate",img:"avocado_17",emoji:"\uD83E\uDD51",unit:"pcs",stock:35,price:2.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]},
+    {id:"v2",name:"Beets",nameEs:"Remolachas",img:"beets_18",emoji:"\uD83E\uDD6C",unit:"kg",stock:20,price:2.5,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]},
+    {id:"v3",name:"Carrots",nameEs:"Zanahorias",img:"carrots_19",emoji:"\uD83E\uDD55",unit:"kg",stock:28,price:1.5,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]},
+    {id:"v4",name:"Eggplant",nameEs:"Berenjena",img:"eggplant_italian_23",emoji:"\uD83C\uDF46",unit:"pcs",stock:18,price:2.8,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]},
+    {id:"v5",name:"Garlic",nameEs:"Ajo",img:"garlic_24",emoji:"\uD83E\uDDC4",unit:"kg",stock:15,price:8.0,barcode:"",alertLow:15,alertCrit:5,loc:["dry","kitchen"],subs:[]},
+    {id:"v7",name:"Leek",nameEs:"Puerro",img:"leek_26",emoji:"\uD83E\uDD6C",unit:"pcs",stock:15,price:2.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]},
+    {id:"v8",name:"Mushrooms",nameEs:"Champi\u00f1ones",img:"mushroom__button_27",emoji:"\uD83C\uDF44",unit:"kg",stock:12,price:5.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[
       {id:"v8a",name:"Button Mushrooms",nameEs:"Champi\u00f1ones Bot\u00f3n",stock:8,price:5.0},
       {id:"v8b",name:"Portobello",nameEs:"Portobello",stock:4,price:7.0}
     ]},
-    {id:"v9",name:"Red Onion",nameEs:"Cebolla Roja",img:"onion__red_28",emoji:"\uD83E\uDDC5",unit:"kg",stock:25,price:2.0,loc:["dry","kitchen"],subs:[]},
-    {id:"v10",name:"Spanish Onion",nameEs:"Cebolla Espa\u00f1ola",img:"onion__spanish_29",emoji:"\uD83E\uDDC5",unit:"kg",stock:30,price:1.5,loc:["dry","kitchen"],subs:[]},
-    {id:"v11",name:"Peppers",nameEs:"Pimientos",img:"pepper__red_32",emoji:"\uD83C\uDF36",unit:"kg",stock:54,price:4.0,loc:["fridge","kitchen"],subs:[
+    {id:"v9",name:"Red Onion",nameEs:"Cebolla Roja",img:"onion__red_28",emoji:"\uD83E\uDDC5",unit:"kg",stock:25,price:2.0,barcode:"",alertLow:15,alertCrit:5,loc:["dry","kitchen"],subs:[]},
+    {id:"v10",name:"Spanish Onion",nameEs:"Cebolla Espa\u00f1ola",img:"onion__spanish_29",emoji:"\uD83E\uDDC5",unit:"kg",stock:30,price:1.5,barcode:"",alertLow:15,alertCrit:5,loc:["dry","kitchen"],subs:[]},
+    {id:"v11",name:"Peppers",nameEs:"Pimientos",img:"pepper__red_32",emoji:"\uD83C\uDF36",unit:"kg",stock:54,price:4.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[
       {id:"v11a",name:"Red Pepper",nameEs:"Pimiento Rojo",img:"pepper__red_32",stock:20,price:4.0},
       {id:"v11b",name:"Yellow Pepper",nameEs:"Pimiento Amarillo",img:"pepper__yellow_33",stock:18,price:4.0},
       {id:"v11c",name:"Orange Pepper",nameEs:"Pimiento Naranja",img:"pepper__orange_34",stock:16,price:4.0}
     ]},
-    {id:"v14",name:"Jalape\u00f1o",nameEs:"Jalape\u00f1o",img:"jalepino_peppers_46",emoji:"\uD83C\uDF36",unit:"kg",stock:8,price:6.0,loc:["fridge","kitchen"],subs:[]},
-    {id:"v15",name:"Red Cabbage",nameEs:"Col Morada",img:"red_cabbage__shredded_2",emoji:"\uD83E\uDD6C",unit:"kg",stock:12,price:2.0,loc:["fridge","kitchen"],subs:[]},
-    {id:"v16",name:"Romaine Lettuce",nameEs:"Lechuga Romana",img:"romaine__chopped_3",emoji:"\uD83E\uDD6C",unit:"pcs",stock:20,price:1.5,loc:["fridge","kitchen"],subs:[]},
-    {id:"v17",name:"Tomatoes",nameEs:"Tomates",img:"tomato_grape_42",emoji:"\uD83C\uDF45",unit:"kg",stock:35,price:3.5,loc:["fridge","kitchen"],subs:[
+    {id:"v14",name:"Jalape\u00f1o",nameEs:"Jalape\u00f1o",img:"jalepino_peppers_46",emoji:"\uD83C\uDF36",unit:"kg",stock:8,price:6.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]},
+    {id:"v15",name:"Red Cabbage",nameEs:"Col Morada",img:"red_cabbage__shredded_2",emoji:"\uD83E\uDD6C",unit:"kg",stock:12,price:2.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]},
+    {id:"v16",name:"Romaine Lettuce",nameEs:"Lechuga Romana",img:"romaine__chopped_3",emoji:"\uD83E\uDD6C",unit:"pcs",stock:20,price:1.5,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]},
+    {id:"v17",name:"Tomatoes",nameEs:"Tomates",img:"tomato_grape_42",emoji:"\uD83C\uDF45",unit:"kg",stock:35,price:3.5,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[
       {id:"v17a",name:"Grape Tomato",nameEs:"Tomate Cherry",img:"tomato_grape_42",stock:15,price:4.0},
       {id:"v17b",name:"Plum Tomato",nameEs:"Tomate Pera",img:"tomato_plum_43",stock:20,price:3.0}
     ]},
-    {id:"v19",name:"Zucchini",nameEs:"Calabac\u00edn",img:"zukini_green_44",emoji:"\uD83E\uDD52",unit:"kg",stock:30,price:2.75,loc:["fridge","kitchen"],subs:[
+    {id:"v19",name:"Zucchini",nameEs:"Calabac\u00edn",img:"zukini_green_44",emoji:"\uD83E\uDD52",unit:"kg",stock:30,price:2.75,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[
       {id:"v19a",name:"Green Zucchini",nameEs:"Calabac\u00edn Verde",img:"zukini_green_44",stock:18,price:2.5},
       {id:"v19b",name:"Yellow Zucchini",nameEs:"Calabac\u00edn Amarillo",img:"zukini__yellow_45",stock:12,price:3.0}
     ]}
   ],
   meat:[
-    {id:"m1",name:"Beef Sirloin",nameEs:"Solomillo de Res",img:"beef_sirloin_47",emoji:"\uD83E\uDD69",unit:"kg",stock:20,price:18.0,loc:["fridge","freezer","kitchen"],subs:[]},
-    {id:"m2",name:"Ground Beef",nameEs:"Carne Molida",img:"ground_beef_48",emoji:"\uD83E\uDD69",unit:"kg",stock:15,price:12.0,loc:["fridge","freezer","kitchen"],subs:[]},
-    {id:"m3",name:"Lamb Chops",nameEs:"Chuletas de Cordero",img:"lamb_chops_49",emoji:"\uD83C\uDF56",unit:"kg",stock:10,price:22.0,loc:["fridge","freezer","kitchen"],subs:[]},
-    {id:"m5",name:"Beef Ribs",nameEs:"Costillas de Res",img:"beef_ribs_51",emoji:"\uD83C\uDF56",unit:"kg",stock:12,price:16.0,loc:["fridge","freezer","kitchen"],subs:[]}
+    {id:"m1",name:"Beef Sirloin",nameEs:"Solomillo de Res",img:"beef_sirloin_47",emoji:"\uD83E\uDD69",unit:"kg",stock:20,price:18.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","freezer","kitchen"],subs:[]},
+    {id:"m2",name:"Ground Beef",nameEs:"Carne Molida",img:"ground_beef_48",emoji:"\uD83E\uDD69",unit:"kg",stock:15,price:12.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","freezer","kitchen"],subs:[]},
+    {id:"m3",name:"Lamb Chops",nameEs:"Chuletas de Cordero",img:"lamb_chops_49",emoji:"\uD83C\uDF56",unit:"kg",stock:10,price:22.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","freezer","kitchen"],subs:[]},
+    {id:"m5",name:"Beef Ribs",nameEs:"Costillas de Res",img:"beef_ribs_51",emoji:"\uD83C\uDF56",unit:"kg",stock:12,price:16.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","freezer","kitchen"],subs:[]}
   ],
   poultry:[
-    {id:"p1",name:"Chicken Breast",nameEs:"Pechuga de Pollo",img:"chicken_bottom__28",emoji:"\uD83C\uDF57",unit:"kg",stock:30,price:8.5,loc:["fridge","freezer","kitchen"],subs:[]},
-    {id:"p2",name:"Whole Chicken",nameEs:"Pollo Entero",img:"whole_chicken_53",emoji:"\uD83D\uDC14",unit:"pcs",stock:15,price:7.0,loc:["fridge","freezer","kitchen"],subs:[]},
-    {id:"p3",name:"Turkey",nameEs:"Pavo",img:"turkey_54",emoji:"\uD83E\uDD83",unit:"kg",stock:10,price:11.0,loc:["fridge","freezer","kitchen"],subs:[]},
-    {id:"p4",name:"Duck",nameEs:"Pato",img:"duck_55",emoji:"\uD83E\uDD86",unit:"pcs",stock:6,price:14.0,loc:["fridge","freezer","kitchen"],subs:[]},
-    {id:"p5",name:"Chicken Wings",nameEs:"Alitas de Pollo",img:"chicken_wings_56",emoji:"\uD83C\uDF57",unit:"kg",stock:20,price:6.0,loc:["fridge","freezer","kitchen"],subs:[]}
+    {id:"p1",name:"Chicken Breast",nameEs:"Pechuga de Pollo",img:"chicken_bottom__28",emoji:"\uD83C\uDF57",unit:"kg",stock:30,price:8.5,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","freezer","kitchen"],subs:[]},
+    {id:"p2",name:"Whole Chicken",nameEs:"Pollo Entero",img:"whole_chicken_53",emoji:"\uD83D\uDC14",unit:"pcs",stock:15,price:7.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","freezer","kitchen"],subs:[]},
+    {id:"p3",name:"Turkey",nameEs:"Pavo",img:"turkey_54",emoji:"\uD83E\uDD83",unit:"kg",stock:10,price:11.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","freezer","kitchen"],subs:[]},
+    {id:"p4",name:"Duck",nameEs:"Pato",img:"duck_55",emoji:"\uD83E\uDD86",unit:"pcs",stock:6,price:14.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","freezer","kitchen"],subs:[]},
+    {id:"p5",name:"Chicken Wings",nameEs:"Alitas de Pollo",img:"chicken_wings_56",emoji:"\uD83C\uDF57",unit:"kg",stock:20,price:6.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","freezer","kitchen"],subs:[]}
   ],
   fish:[
-    {id:"fi1",name:"Salmon Fillet",nameEs:"Filete de Salm\u00f3n",img:"fish__29",emoji:"\uD83D\uDC1F",unit:"kg",stock:12,price:20.0,loc:["fridge","freezer","kitchen"],subs:[]},
-    {id:"fi2",name:"Tuna Steak",nameEs:"Filete de At\u00fan",img:"tuna_steak_58",emoji:"\uD83D\uDC1F",unit:"kg",stock:8,price:24.0,loc:["fridge","freezer","kitchen"],subs:[]},
-    {id:"fi4",name:"Sea Bass",nameEs:"Lubina",img:"sea_bass_60",emoji:"\uD83D\uDC1F",unit:"kg",stock:10,price:18.0,loc:["fridge","freezer","kitchen"],subs:[]}
+    {id:"fi1",name:"Salmon Fillet",nameEs:"Filete de Salm\u00f3n",img:"fish__29",emoji:"\uD83D\uDC1F",unit:"kg",stock:12,price:20.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","freezer","kitchen"],subs:[]},
+    {id:"fi2",name:"Tuna Steak",nameEs:"Filete de At\u00fan",img:"tuna_steak_58",emoji:"\uD83D\uDC1F",unit:"kg",stock:8,price:24.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","freezer","kitchen"],subs:[]},
+    {id:"fi4",name:"Sea Bass",nameEs:"Lubina",img:"sea_bass_60",emoji:"\uD83D\uDC1F",unit:"kg",stock:10,price:18.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","freezer","kitchen"],subs:[]}
   ],
   melons:[
-    {id:"ml1",name:"Cantaloupe",nameEs:"Mel\u00f3n",img:"cantalope_6",emoji:"\uD83C\uDF48",unit:"pcs",stock:10,price:4.0,loc:["fridge","kitchen"],subs:[]},
-    {id:"ml2",name:"Honeydew",nameEs:"Mel\u00f3n Verde",img:"honey_dew_10",emoji:"\uD83C\uDF48",unit:"pcs",stock:8,price:4.5,loc:["fridge","kitchen"],subs:[]},
-    {id:"ml3",name:"Pomegranate",nameEs:"Granada",img:"pomegrante_12",emoji:"\uD83C\uDF4E",unit:"pcs",stock:12,price:3.5,loc:["fridge","kitchen"],subs:[]},
-    {id:"ml4",name:"Watermelon",nameEs:"Sand\u00eda",img:"watermellon_14",emoji:"\uD83C\uDF49",unit:"pcs",stock:6,price:5.0,loc:["fridge","kitchen"],subs:[]},
-    {id:"ml5",name:"Watermelon Radish",nameEs:"R\u00e1bano Sand\u00eda",img:"watermelon_raddish_35",emoji:"\uD83C\uDF49",unit:"kg",stock:8,price:5.0,loc:["fridge","kitchen"],subs:[]}
+    {id:"ml1",name:"Cantaloupe",nameEs:"Mel\u00f3n",img:"cantalope_6",emoji:"\uD83C\uDF48",unit:"pcs",stock:10,price:4.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]},
+    {id:"ml2",name:"Honeydew",nameEs:"Mel\u00f3n Verde",img:"honey_dew_10",emoji:"\uD83C\uDF48",unit:"pcs",stock:8,price:4.5,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]},
+    {id:"ml3",name:"Pomegranate",nameEs:"Granada",img:"pomegrante_12",emoji:"\uD83C\uDF4E",unit:"pcs",stock:12,price:3.5,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]},
+    {id:"ml4",name:"Watermelon",nameEs:"Sand\u00eda",img:"watermellon_14",emoji:"\uD83C\uDF49",unit:"pcs",stock:6,price:5.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]},
+    {id:"ml5",name:"Watermelon Radish",nameEs:"R\u00e1bano Sand\u00eda",img:"watermelon_raddish_35",emoji:"\uD83C\uDF49",unit:"kg",stock:8,price:5.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]}
   ],
   dry_goods:[
-    {id:"dg1",name:"Flour",nameEs:"Harina",img:"flour_63",emoji:"\uD83C\uDF3E",unit:"kg",stock:50,price:1.2,loc:["dry","kitchen"],subs:[]},
-    {id:"dg2",name:"Sugar",nameEs:"Az\u00facar",img:"sugar_64",emoji:"\uD83C\uDF6C",unit:"kg",stock:40,price:1.5,loc:["dry","kitchen"],subs:[]},
-    {id:"dg3",name:"Rice",nameEs:"Arroz",img:"rice_65",emoji:"\uD83C\uDF5A",unit:"kg",stock:35,price:2.0,loc:["dry","kitchen"],subs:[]},
-    {id:"dg4",name:"Pasta",nameEs:"Pasta",img:"pasta_66",emoji:"\uD83C\uDF5D",unit:"kg",stock:30,price:1.8,loc:["dry","kitchen"],subs:[]},
-    {id:"dg5",name:"Olive Oil",nameEs:"Aceite de Oliva",img:"olive_oil_67",emoji:"\uD83E\uDDC8",unit:"L",stock:15,price:8.0,loc:["dry","kitchen"],subs:[]},
-    {id:"dg6",name:"Bread Crumbs",nameEs:"Pan Rallado",img:"bread_crumbs_68",emoji:"\uD83C\uDF5E",unit:"kg",stock:10,price:2.5,loc:["dry","kitchen"],subs:[]}
+    {id:"dg1",name:"Flour",nameEs:"Harina",img:"flour_63",emoji:"\uD83C\uDF3E",unit:"kg",stock:50,price:1.2,barcode:"",alertLow:15,alertCrit:5,loc:["dry","kitchen"],subs:[]},
+    {id:"dg2",name:"Sugar",nameEs:"Az\u00facar",img:"sugar_64",emoji:"\uD83C\uDF6C",unit:"kg",stock:40,price:1.5,barcode:"",alertLow:15,alertCrit:5,loc:["dry","kitchen"],subs:[]},
+    {id:"dg3",name:"Rice",nameEs:"Arroz",img:"rice_65",emoji:"\uD83C\uDF5A",unit:"kg",stock:35,price:2.0,barcode:"",alertLow:15,alertCrit:5,loc:["dry","kitchen"],subs:[]},
+    {id:"dg4",name:"Pasta",nameEs:"Pasta",img:"pasta_66",emoji:"\uD83C\uDF5D",unit:"kg",stock:30,price:1.8,barcode:"",alertLow:15,alertCrit:5,loc:["dry","kitchen"],subs:[]},
+    {id:"dg5",name:"Olive Oil",nameEs:"Aceite de Oliva",img:"olive_oil_67",emoji:"\uD83E\uDDC8",unit:"L",stock:15,price:8.0,barcode:"",alertLow:15,alertCrit:5,loc:["dry","kitchen"],subs:[]},
+    {id:"dg6",name:"Bread Crumbs",nameEs:"Pan Rallado",img:"bread_crumbs_68",emoji:"\uD83C\uDF5E",unit:"kg",stock:10,price:2.5,barcode:"",alertLow:15,alertCrit:5,loc:["dry","kitchen"],subs:[]}
   ],
   spices:[
-    {id:"s1",name:"Salt",nameEs:"Sal",img:"salt_69",emoji:"\uD83E\uDDC2",unit:"kg",stock:10,price:0.8,loc:["dry","kitchen"],subs:[]},
-    {id:"s2",name:"Black Pepper",nameEs:"Pimienta Negra",img:"black_pepper_70",emoji:"\uD83C\uDF36",unit:"kg",stock:5,price:12.0,loc:["dry","kitchen"],subs:[]},
-    {id:"s3",name:"Paprika",nameEs:"Piment\u00f3n",img:"paprika_71",emoji:"\uD83C\uDF36",unit:"kg",stock:3,price:8.0,loc:["dry","kitchen"],subs:[]},
-    {id:"s4",name:"Cumin",nameEs:"Comino",img:"cumin_72",emoji:"\uD83C\uDF36",unit:"kg",stock:4,price:10.0,loc:["dry","kitchen"],subs:[]},
-    {id:"s5",name:"Oregano",nameEs:"Or\u00e9gano",img:"oregano_73",emoji:"\uD83C\uDF3F",unit:"kg",stock:2,price:15.0,loc:["dry","kitchen"],subs:[]},
-    {id:"s6",name:"Cinnamon",nameEs:"Canela",img:"cinnamon_74",emoji:"\uD83C\uDF36",unit:"kg",stock:3,price:11.0,loc:["dry","kitchen"],subs:[]}
+    {id:"s1",name:"Salt",nameEs:"Sal",img:"salt_69",emoji:"\uD83E\uDDC2",unit:"kg",stock:10,price:0.8,barcode:"",alertLow:15,alertCrit:5,loc:["dry","kitchen"],subs:[]},
+    {id:"s2",name:"Black Pepper",nameEs:"Pimienta Negra",img:"black_pepper_70",emoji:"\uD83C\uDF36",unit:"kg",stock:5,price:12.0,barcode:"",alertLow:15,alertCrit:5,loc:["dry","kitchen"],subs:[]},
+    {id:"s3",name:"Paprika",nameEs:"Piment\u00f3n",img:"paprika_71",emoji:"\uD83C\uDF36",unit:"kg",stock:3,price:8.0,barcode:"",alertLow:15,alertCrit:5,loc:["dry","kitchen"],subs:[]},
+    {id:"s4",name:"Cumin",nameEs:"Comino",img:"cumin_72",emoji:"\uD83C\uDF36",unit:"kg",stock:4,price:10.0,barcode:"",alertLow:15,alertCrit:5,loc:["dry","kitchen"],subs:[]},
+    {id:"s5",name:"Oregano",nameEs:"Or\u00e9gano",img:"oregano_73",emoji:"\uD83C\uDF3F",unit:"kg",stock:2,price:15.0,barcode:"",alertLow:15,alertCrit:5,loc:["dry","kitchen"],subs:[]},
+    {id:"s6",name:"Cinnamon",nameEs:"Canela",img:"cinnamon_74",emoji:"\uD83C\uDF36",unit:"kg",stock:3,price:11.0,barcode:"",alertLow:15,alertCrit:5,loc:["dry","kitchen"],subs:[]}
   ],
   roots:[
-    {id:"rt1",name:"Baby Carrots",nameEs:"Zanahorias Baby",img:"baby_carrots_mini_pilled_20",emoji:"\uD83E\uDD55",unit:"kg",stock:20,price:3.0,loc:["fridge","kitchen"],subs:[]},
-    {id:"rt2",name:"White Cabbage",nameEs:"Col Blanca",img:"cabbage__shredded__white__1",emoji:"\uD83E\uDD6C",unit:"kg",stock:15,price:1.5,loc:["fridge","kitchen"],subs:[]},
-    {id:"rt3",name:"Celery Root",nameEs:"Ra\u00edz de Apio",img:"cellery__root_21",emoji:"\uD83E\uDD6C",unit:"kg",stock:10,price:3.5,loc:["fridge","kitchen"],subs:[]},
-    {id:"rt4",name:"Daikon",nameEs:"Daikon",img:"dykon_22",emoji:"\uD83E\uDD55",unit:"kg",stock:12,price:2.5,loc:["fridge","kitchen"],subs:[]},
-    {id:"rt5",name:"Parsley Root",nameEs:"Ra\u00edz de Perejil",img:"parsley__root_30",emoji:"\uD83E\uDD6C",unit:"kg",stock:10,price:3.0,loc:["fridge","kitchen"],subs:[]},
-    {id:"rt6",name:"Parsnip",nameEs:"Chirivía",img:"parsnip_31",emoji:"\uD83E\uDD55",unit:"kg",stock:12,price:2.5,loc:["fridge","kitchen"],subs:[]},
-    {id:"rt7",name:"Potatoes",nameEs:"Papas",img:"potato__idaho_37",emoji:"\uD83E\uDD54",unit:"kg",stock:95,price:1.5,loc:["dry","kitchen"],subs:[
+    {id:"rt1",name:"Baby Carrots",nameEs:"Zanahorias Baby",img:"baby_carrots_mini_pilled_20",emoji:"\uD83E\uDD55",unit:"kg",stock:20,price:3.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]},
+    {id:"rt2",name:"White Cabbage",nameEs:"Col Blanca",img:"cabbage__shredded__white__1",emoji:"\uD83E\uDD6C",unit:"kg",stock:15,price:1.5,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]},
+    {id:"rt3",name:"Celery Root",nameEs:"Ra\u00edz de Apio",img:"cellery__root_21",emoji:"\uD83E\uDD6C",unit:"kg",stock:10,price:3.5,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]},
+    {id:"rt4",name:"Daikon",nameEs:"Daikon",img:"dykon_22",emoji:"\uD83E\uDD55",unit:"kg",stock:12,price:2.5,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]},
+    {id:"rt5",name:"Parsley Root",nameEs:"Ra\u00edz de Perejil",img:"parsley__root_30",emoji:"\uD83E\uDD6C",unit:"kg",stock:10,price:3.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]},
+    {id:"rt6",name:"Parsnip",nameEs:"Chirivía",img:"parsnip_31",emoji:"\uD83E\uDD55",unit:"kg",stock:12,price:2.5,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]},
+    {id:"rt7",name:"Potatoes",nameEs:"Papas",img:"potato__idaho_37",emoji:"\uD83E\uDD54",unit:"kg",stock:95,price:1.5,barcode:"",alertLow:15,alertCrit:5,loc:["dry","kitchen"],subs:[
       {id:"rt7a",name:"Idaho Potato",nameEs:"Papa Idaho",img:"potato__idaho_37",stock:40,price:1.2},
       {id:"rt7b",name:"Red Potato",nameEs:"Papa Roja",img:"potato__red_38",stock:30,price:1.5},
       {id:"rt7c",name:"Yukon Gold",nameEs:"Papa Yukon",img:"yukon_chef_39",stock:25,price:1.8}
     ]},
-    {id:"rt10",name:"Sweet Potato",nameEs:"Batata",img:"sweet__potato_40",emoji:"\uD83C\uDF60",unit:"kg",stock:25,price:2.0,loc:["dry","kitchen","fridge"],subs:[]},
-    {id:"rt11",name:"Red Radish",nameEs:"R\u00e1bano Rojo",img:"raddish_red_41",emoji:"\uD83E\uDD55",unit:"kg",stock:10,price:3.0,loc:["fridge","kitchen"],subs:[]}
+    {id:"rt10",name:"Sweet Potato",nameEs:"Batata",img:"sweet__potato_40",emoji:"\uD83C\uDF60",unit:"kg",stock:25,price:2.0,barcode:"",alertLow:15,alertCrit:5,loc:["dry","kitchen","fridge"],subs:[]},
+    {id:"rt11",name:"Red Radish",nameEs:"R\u00e1bano Rojo",img:"raddish_red_41",emoji:"\uD83E\uDD55",unit:"kg",stock:10,price:3.0,barcode:"",alertLow:15,alertCrit:5,loc:["fridge","kitchen"],subs:[]}
   ]
 };
 
@@ -529,6 +562,79 @@ var manageMode = false;
 var showModal = "";
 var deleteTarget = null;
 var editTarget = null;
+
+// Barcode scanner
+var barcodeStream = null;
+var barcodeDetectorSupported = (typeof BarcodeDetector !== "undefined");
+var scanningBarcode = false;
+var lastBarcode = "";
+
+// External USB/Bluetooth barcode scanner
+var extScannerEnabled = localStorage.getItem("extScannerEnabled")!=="false"; // on by default
+var extScannerBuffer = "";
+var extScannerTimeout = null;
+var extScannerLastHit = "";
+var extScannerShowToast = false;
+
+// Listen for external scanner (keyboard wedge mode)
+document.addEventListener("keydown", function(e) {
+  if(!extScannerEnabled) return;
+  var tag = (document.activeElement||{}).tagName||"";
+  var activeId = (document.activeElement||{}).id||"";
+  if((tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT") && activeId!=="barcode-manual") return;
+  if(e.key==="Enter" && extScannerBuffer.length>=4) {
+    e.preventDefault();
+    var code = extScannerBuffer;
+    extScannerBuffer = "";
+    clearTimeout(extScannerTimeout);
+    if(scanningBarcode) {
+      lastBarcode = code;
+      if(barcodeStream){barcodeStream.getTracks().forEach(function(t){t.stop();});barcodeStream=null;}
+      render();
+    } else {
+      handleExternalScan(code);
+    }
+    return;
+  }
+  if(e.key.length===1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    extScannerBuffer += e.key;
+    clearTimeout(extScannerTimeout);
+    extScannerTimeout = setTimeout(function(){ extScannerBuffer=""; }, 150);
+  }
+});
+
+
+function handleExternalScan(code) {
+  extScannerLastHit = code;
+  var found = findItemByBarcode(code);
+  if(found && (mode==="in"||mode==="out")) {
+    // In active stock mode → go directly to qty
+    var catIdx=-1;for(var ci=0;ci<CATEGORIES.length;ci++)if(CATEGORIES[ci].id===found.catId)catIdx=ci;
+    if(catIdx>=0) selCat=CATEGORIES[catIdx];
+    selItem=found.item;screen="qty";quantity="";qtyMode=(selItem.unit==="kg")?"kg":"pcs";
+    showExtScanToast(found.item.name, code, true);
+    render();
+  } else if(found) {
+    // Not in stock mode → show info toast
+    showExtScanToast(found.item.name + " — " + found.item.stock + " " + found.item.unit, code, true);
+  } else {
+    showExtScanToast("Unknown barcode", code, false);
+  }
+}
+
+function showExtScanToast(msg, code, success) {
+  extScannerShowToast = {msg:msg, code:code, success:success};
+  render();
+  setTimeout(function(){ extScannerShowToast=false; render(); }, 3000);
+}
+
+// AI Updates checker
+var aiUpdates = JSON.parse(localStorage.getItem("aiUpdates")||"[]");
+var aiLastCheck = localStorage.getItem("aiLastCheck")||"";
+var aiCheckLoading = false;
+
+// Migration / App State
+var APP_VERSION = "3.2.0";
 var pinInput = "";
 var pinError = false;
 var pendingMode = "";
@@ -547,8 +653,8 @@ function getAlerts() {
   for(var c in ITEMS_DB){var cat=null;for(var ci=0;ci<CATEGORIES.length;ci++)if(CATEGORIES[ci].id===c)cat=CATEGORIES[ci];
     for(var i=0;i<ITEMS_DB[c].length;i++){var it=ITEMS_DB[c][i];
       if(it.stock===0) alerts.push({item:it,cat:cat,catId:c,idx:i,level:"zero"});
-      else if(it.stock<=5) alerts.push({item:it,cat:cat,catId:c,idx:i,level:"critical"});
-      else if(it.stock<=15) alerts.push({item:it,cat:cat,catId:c,idx:i,level:"low"});
+      else if(it.stock<=(it.alertCrit||5)) alerts.push({item:it,cat:cat,catId:c,idx:i,level:"critical"});
+      else if(it.stock<=(it.alertLow||15)) alerts.push({item:it,cat:cat,catId:c,idx:i,level:"low"});
     }
   }
   alerts.sort(function(a,b){
@@ -559,8 +665,172 @@ function getAlerts() {
   return alerts;
 }
 function getZeroCount(){var n=0;for(var c in ITEMS_DB)for(var i=0;i<ITEMS_DB[c].length;i++)if(ITEMS_DB[c][i].stock===0)n++;return n;}
-function getLowCount(){var n=0;for(var c in ITEMS_DB)for(var i=0;i<ITEMS_DB[c].length;i++)if(ITEMS_DB[c][i].stock>0&&ITEMS_DB[c][i].stock<=15)n++;return n;}
+function getLowCount(){var n=0;for(var c in ITEMS_DB)for(var i=0;i<ITEMS_DB[c].length;i++){var it=ITEMS_DB[c][i];if(it.stock>0&&it.stock<=(it.alertLow||15))n++;}return n;}
 function getTotalAlertCount(){return getZeroCount()+getLowCount();}
+
+// ========== BARCODE SCANNER ==========
+function findItemByBarcode(code) {
+  for(var c in ITEMS_DB) for(var i=0;i<ITEMS_DB[c].length;i++) {
+    if(ITEMS_DB[c][i].barcode===code) return {item:ITEMS_DB[c][i],catId:c,idx:i};
+    if(ITEMS_DB[c][i].subs) for(var s=0;s<ITEMS_DB[c][i].subs.length;s++)
+      if(ITEMS_DB[c][i].subs[s].barcode===code) return {item:ITEMS_DB[c][i],catId:c,idx:i,subIdx:s};
+  }
+  return null;
+}
+
+function startBarcodeScan() {
+  scanningBarcode=true;lastBarcode="";render();
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    lastBarcode="CAMERA_ERROR";render();return;
+  }
+  navigator.mediaDevices.getUserMedia({video:{facingMode:"environment",width:{ideal:1280},height:{ideal:720}}})
+  .then(function(stream){
+    barcodeStream=stream;
+    setTimeout(function(){
+      var v=document.getElementById("barcode-video");
+      if(v){v.srcObject=stream;v.play();startBarcodeDetection(v);}
+    },100);
+  }).catch(function(e){console.error("Camera error:",e);lastBarcode="CAMERA_ERROR";render();});
+}
+
+function startBarcodeDetection(video) {
+  if(typeof BarcodeDetector!=="undefined") {
+    var detector=new BarcodeDetector({formats:["ean_13","ean_8","upc_a","upc_e","code_128","code_39","qr_code"]});
+    function detectFrame(){
+      if(!scanningBarcode)return;
+      detector.detect(video).then(function(barcodes){
+        if(barcodes.length>0){
+          var code=barcodes[0].rawValue;
+          handleBarcodeResult(code);return;
+        }
+        requestAnimationFrame(detectFrame);
+      }).catch(function(){requestAnimationFrame(detectFrame);});
+    }
+    detectFrame();
+  } else {
+    // Fallback: manual entry
+    lastBarcode="NO_DETECTOR";render();
+  }
+}
+
+function handleBarcodeResult(code) {
+  lastBarcode=code;
+  if(barcodeStream){barcodeStream.getTracks().forEach(function(t){t.stop();});barcodeStream=null;}
+  var found=findItemByBarcode(code);
+  if(found) {
+    // Auto navigate to qty screen
+    var catIdx=-1;for(var ci=0;ci<CATEGORIES.length;ci++)if(CATEGORIES[ci].id===found.catId)catIdx=ci;
+    if(catIdx>=0) selCat=CATEGORIES[catIdx];
+    selItem=found.item;screen="qty";quantity="";qtyMode=(selItem.unit==="kg")?"kg":"pcs";
+    scanningBarcode=false;render();
+  } else {
+    render(); // Show "not found" UI
+  }
+}
+
+function stopBarcodeScan() {
+  scanningBarcode=false;
+  if(barcodeStream){barcodeStream.getTracks().forEach(function(t){t.stop();});barcodeStream=null;}
+  render();
+}
+
+function assignBarcode(catId,idx,code) {
+  ITEMS_DB[catId][idx].barcode=code;
+  lastBarcode="";scanningBarcode=false;render();
+}
+
+// ========== AI UPDATES CHECKER ==========
+function checkAiUpdates() {
+  if(!claudeApiKey){showModal="nokey";render();setTimeout(function(){showModal="";render();},2000);return;}
+  aiCheckLoading=true;render();
+  var payload={
+    model:"claude-sonnet-4-20250514",
+    max_tokens:2048,
+    messages:[{role:"user",content:"You are an AI technology advisor for a kitchen/restaurant inventory management system. List 3-5 recent (2025-2026) AI tools, APIs, or technologies that could improve: inventory forecasting, supplier automation, waste reduction, recipe costing, or kitchen operations. For each: name, one-line description, relevance score (1-5), and a suggested integration. Return ONLY valid JSON array: [{\"name\":\"...\",\"desc\":\"...\",\"relevance\":5,\"integration\":\"...\"}]. Focus on practical, deployable tools."}],
+    system:"Return only a JSON array. No markdown, no explanation."
+  };
+  fetch("https://api.anthropic.com/v1/messages",{
+    method:"POST",
+    headers:{"Content-Type":"application/json","x-api-key":claudeApiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+    body:JSON.stringify(payload)
+  }).then(function(r){return r.json();})
+  .then(function(data){
+    var text="";for(var i=0;i<data.content.length;i++)if(data.content[i].type==="text")text+=data.content[i].text;
+    var jsonMatch=text.match(/\[[\s\S]*\]/);
+    if(jsonMatch){
+      aiUpdates=JSON.parse(jsonMatch[0]);
+      aiLastCheck=now();
+      localStorage.setItem("aiUpdates",JSON.stringify(aiUpdates));
+      localStorage.setItem("aiLastCheck",aiLastCheck);
+    }
+    aiCheckLoading=false;render();
+  }).catch(function(e){console.error("AI check error:",e);aiCheckLoading=false;render();});
+}
+
+// ========== DATA MIGRATION ==========
+function exportAppState() {
+  var state={
+    version:APP_VERSION,
+    exported:new Date().toISOString(),
+    items:ITEMS_DB,
+    categories:CATEGORIES.map(function(c){return{id:c.id,name:c.name,nameEs:c.nameEs,emoji:c.emoji};}),
+    storages:STORAGES.map(function(s){return{id:s.id,name:s.name};}),
+    transactions:txLog,
+    settings:{
+      apiEndpoint:apiEndpoint,
+      apiConnected:apiConnected,
+      claudeConnected:!!claudeApiKey
+    },
+    stats:{
+      totalItems:allItemsFlat().length,
+      totalValue:allItemsFlat().reduce(function(s,x){return s+x.item.stock*x.item.price;},0),
+      alertCount:getTotalAlertCount()
+    }
+  };
+  var json=JSON.stringify(state,null,2);
+  var blob=new Blob([json],{type:"application/json"});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement("a");
+  a.href=url;a.download="inventory_state_"+new Date().toISOString().slice(0,10)+".json";
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+
+function importAppState(input) {
+  if(!input.files||!input.files[0])return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var state=JSON.parse(e.target.result);
+      if(!state.version||!state.items){alert("Invalid state file");return;}
+      // Merge items
+      for(var c in state.items){
+        if(ITEMS_DB[c]) ITEMS_DB[c]=state.items[c];
+      }
+      if(state.transactions) txLog=state.transactions;
+      showModal="success";render();setTimeout(function(){showModal="";render();},1200);
+    }catch(err){alert("Error: "+err.message);}
+  };reader.readAsText(input.files[0]);
+}
+
+// Export for external API consumption (REST-ready format)
+function getApiPayload() {
+  var items=allItemsFlat();
+  return {
+    version:APP_VERSION,
+    timestamp:new Date().toISOString(),
+    summary:{total:items.length,alerts:getTotalAlertCount(),value:items.reduce(function(s,x){return s+x.item.stock*x.item.price;},0)},
+    items:items.map(function(x){return{
+      id:x.item.id,name:x.item.name,nameEs:x.item.nameEs||"",
+      category:x.cat?x.cat.name:"",categoryId:x.catId,
+      stock:x.item.stock,unit:x.item.unit,price:x.item.price,
+      barcode:x.item.barcode||"",
+      locations:(x.item.loc||[]).slice(),
+      alertCrit:x.item.alertCrit||5,alertLow:x.item.alertLow||15,
+      status:x.item.stock===0?"out":x.item.stock<=(x.item.alertCrit||5)?"critical":x.item.stock<=(x.item.alertLow||15)?"low":"ok"
+    };}),
+    transactions:txLog.slice(-100)
+  };
+}
 
 // Scan state
 var scanState = "idle";
@@ -695,6 +965,10 @@ function saveEditItem(){
   it.nameEs=(document.getElementById("edit-name-es")||{}).value||"";
   it.unit=(document.getElementById("edit-unit")||{}).value||it.unit;
   it.price=parseFloat((document.getElementById("edit-price")||{}).value)||it.price;
+  it.alertCrit=parseFloat((document.getElementById("edit-alertCrit")||{}).value)||5;
+  it.alertLow=parseFloat((document.getElementById("edit-alertLow")||{}).value)||15;
+  if(it.alertCrit>=it.alertLow) it.alertLow=it.alertCrit+1;
+  it.barcode=(document.getElementById("edit-barcode")||{}).value||"";
   var locs=[];for(var si=0;si<STORAGES.length;si++){var cb=document.getElementById("edit-loc-"+STORAGES[si].id);if(cb&&cb.checked)locs.push(STORAGES[si].id);}
   it.loc=locs;
   editTarget=null;showModal="";render();
@@ -706,8 +980,11 @@ function saveNewItem(){
   var st=parseFloat((document.getElementById("add-stock")||{}).value)||0;
   var pr=parseFloat((document.getElementById("add-price")||{}).value)||0;
   if(!n.trim())return;
+  var aLow=parseFloat((document.getElementById("add-alertLow")||{}).value)||15;
+  var aCrit=parseFloat((document.getElementById("add-alertCrit")||{}).value)||5;
+  if(aCrit>=aLow) aLow=aCrit+1;
   var locs=[];for(var si=0;si<STORAGES.length;si++){var cb=document.getElementById("add-loc-"+STORAGES[si].id);if(cb&&cb.checked)locs.push(STORAGES[si].id);}
-  ITEMS_DB[selCat.id].push({id:"new_"+Date.now(),name:n.trim(),nameEs:nEs.trim(),emoji:selCat.emoji,unit:u,stock:st,price:pr,loc:locs,subs:[]});
+  ITEMS_DB[selCat.id].push({id:"new_"+Date.now(),name:n.trim(),nameEs:nEs.trim(),emoji:selCat.emoji,unit:u,stock:st,price:pr,barcode:"",alertLow:aLow,alertCrit:aCrit,loc:locs,subs:[]});
   showModal="";render();
 }
 function confirmDelete(){if(deleteTarget)ITEMS_DB[deleteTarget.catId].splice(deleteTarget.idx,1);showModal="";deleteTarget=null;render();}
@@ -746,10 +1023,10 @@ function exportExcel(type) {
   // Helper to get location names
   function locNames(it){if(!it.loc||!it.loc.length)return"All";var n=[];for(var i=0;i<it.loc.length;i++)for(var s=0;s<STORAGES.length;s++)if(STORAGES[s].id===it.loc[i])n.push(STORAGES[s].name);return n.join(", ");}
   if(type==="inventory") {
-    csv="Category,Name,Spanish Name,Locations,Unit,Stock,Price,Value,Status\n";
+    csv="Category,Name,Spanish Name,Locations,Unit,Stock,Price,Value,Alert Critical,Alert Low,Status\n";
     for(var c in ITEMS_DB){var cat=null;for(var ci=0;ci<CATEGORIES.length;ci++)if(CATEGORIES[ci].id===c)cat=CATEGORIES[ci];
-      for(var i=0;i<ITEMS_DB[c].length;i++){var it=ITEMS_DB[c][i];var st=it.stock<5?"Critical":it.stock<15?"Low":"OK";
-        csv+='"'+(cat?cat.name:"")+'","'+it.name+'","'+(it.nameEs||"")+'","'+locNames(it)+'","'+it.unit+'",'+it.stock+','+it.price.toFixed(2)+','+(it.stock*it.price).toFixed(2)+',"'+st+'"\n';
+      for(var i=0;i<ITEMS_DB[c].length;i++){var it=ITEMS_DB[c][i];var st=it.stock===0?"Out":it.stock<=(it.alertCrit||5)?"Critical":it.stock<=(it.alertLow||15)?"Low":"OK";
+        csv+='"'+(cat?cat.name:"")+'","'+it.name+'","'+(it.nameEs||"")+'","'+locNames(it)+'","'+it.unit+'",'+it.stock+','+it.price.toFixed(2)+','+(it.stock*it.price).toFixed(2)+','+(it.alertCrit||5)+','+(it.alertLow||15)+',"'+st+'"\n';
         if(it.subs)for(var s=0;s<it.subs.length;s++){var sub=it.subs[s];
           csv+='"'+(cat?cat.name:"")+'","  \u2514 '+sub.name+'","'+(sub.nameEs||"")+'","","'+it.unit+'",'+sub.stock+','+(sub.price||it.price).toFixed(2)+','+(sub.stock*(sub.price||it.price)).toFixed(2)+',""\n';}
     }}
@@ -1061,6 +1338,15 @@ function renderApp() {
   if(showModal==="delete") h+=renderDeleteModal();
   if(showModal==="edit") h+=renderEditModal();
   if(showModal==="invoice") h+=renderInvoiceModal();
+  if(scanningBarcode) h+=renderBarcodeOverlay();
+  // External scanner toast
+  if(extScannerShowToast) {
+    var t=extScannerShowToast;
+    h+='<div class="ext-scan-toast '+(t.success?"success":"fail")+'">';
+    h+='<div style="font-size:24px">'+(t.success?"\uD83D\uDCF2":"\u274C")+'</div>';
+    h+='<div style="flex:1"><div style="font-size:13px;font-weight:700;color:'+(t.success?"#3fb950":"#f85149")+'">'+t.msg+'</div>';
+    h+='<div style="font-size:10px;color:#8b949e;font-family:monospace">'+t.code+'</div></div></div>';
+  }
   return h;
 }
 function renderCurrent() {
@@ -1142,18 +1428,40 @@ function renderStockInMethod() {
   h+='<div class="menu-card-body"><div class="menu-card-icon">\u270D\uFE0F</div><div class="menu-card-title">Manual Entry</div><div class="menu-card-sub">Add items one by one</div></div></button>';
   h+='<button class="menu-card" style="background:rgba(255,255,255,0.02);border-color:rgba(255,255,255,0.06);--card-bg:rgba(10,14,19,0.9)" onclick="openInvoice()">';
   h+='<div class="menu-card-body"><div class="menu-card-icon">\uD83D\uDCF7</div><div class="menu-card-title">Scan Invoice</div><div class="menu-card-sub">Photo delivery invoice for auto-detect</div></div></button>';
+  h+='<button class="menu-card" style="background:rgba(255,255,255,0.02);border-color:rgba(88,166,255,0.15);--card-bg:rgba(10,14,19,0.9)" onclick="startBarcodeScan()">';
+  h+='<div class="menu-card-body"><div class="menu-card-icon">\uD83D\uDCF2</div><div class="menu-card-title">Scan Barcode</div><div class="menu-card-sub">Scan product barcode with camera</div></div></button>';
   h+='</div>';
+  return h;
+}
+
+function renderScannerStatusBar() {
+  if(!extScannerEnabled) return '';
+  var h='<div style="padding:4px 16px;max-width:700px;margin:0 auto">';
+  h+='<div class="scanner-status-bar active">';
+  h+='<div class="scanner-pulse"></div>';
+  h+='\uD83D\uDCF2 External scanner ready';
+  if(extScannerLastHit) h+='<span style="margin-left:auto;font-size:10px;color:#8b949e;font-family:monospace">Last: '+extScannerLastHit+'</span>';
+  h+='</div></div>';
   return h;
 }
 
 function renderStorage() {
   var h=renderHeader("Select Storage",mode==="in"?"Where to store?":mode==="out"?"Taking from?":"Counting in");
+  if(mode==="in"||mode==="out") h+=renderScannerStatusBar();
   h+='<div class="storage-grid">';
   for(var i=0;i<STORAGES.length;i++){var s=STORAGES[i];
     h+='<button class="storage-card" onclick="setStorage('+i+')">';
     h+='<div class="storage-icon">'+s.icon+'</div><div class="storage-name">'+s.name+'</div></button>';
   }
   h+='</div>';
+  // Quick barcode scan button
+  if(mode==="in"||mode==="out") {
+    h+='<div style="padding:8px 16px;max-width:700px;margin:8px auto 0">';
+    h+='<button onclick="startBarcodeScan()" style="width:100%;padding:12px;border-radius:14px;border:1px solid rgba(88,166,255,0.2);background:rgba(88,166,255,0.04);display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:all 0.15s">';
+    h+='<span style="font-size:18px">\uD83D\uDCF2</span>';
+    h+='<span style="font-size:13px;font-weight:600;color:#58a6ff">Scan Barcode to Skip Selection</span>';
+    h+='</button></div>';
+  }
   return h;
 }
 
@@ -1171,17 +1479,19 @@ function renderCategories() {
 
 function renderItems() {
   var h=renderHeader(selCat?selCat.name:"Items",storage?storage.name:"");
+  if(mode==="in"||mode==="out") h+=renderScannerStatusBar();
   var items=filteredItems(selCat.id);
   // Search bar
   h+='<div class="search-bar"><div class="search-wrap"><span class="search-icon">\uD83D\uDD0D</span>';
   h+='<input class="search-input" style="padding-left:36px" placeholder="Search EN / ES..." value="'+searchQuery+'" oninput="setSearch(this.value)"></div>';
+  h+='<button class="scan-barcode-btn" onclick="startBarcodeScan()">\uD83D\uDCF2</button>';
   h+='<button class="sort-btn" onclick="setSort(sortBy===\'name\'?\'stock\':sortBy===\'stock\'?\'price\':\'name\')">\u2195 '+(sortBy==="name"?"A-Z":sortBy==="stock"?"Stock":"Price")+'</button></div>';
   // Photo grid
   h+='<div class="photo-grid">';
   if(isAdmin) h+='<button class="photo-tile add-tile" onclick="openAdd()" style="flex-direction:row;gap:8px;min-height:44px;padding:10px"><div class="add-tile-icon" style="font-size:20px">+</div><div class="add-tile-label">Add New Item</div></button>';
   for(var i=0;i<items.length;i++){var it=items[i];var origIdx=-1;
     var origArr=ITEMS_DB[selCat.id];for(var oi=0;oi<origArr.length;oi++) if(origArr[oi].id===it.id){origIdx=oi;break;}
-    var sc=it.stock<5?"#f85149":it.stock<15?"#d29922":"#3fb950";
+    var sc=it.stock<=(it.alertCrit||5)?"#f85149":it.stock<=(it.alertLow||15)?"#d29922":"#3fb950";
     h+='<div class="photo-tile" onclick="pickItem(\''+selCat.id+'\','+origIdx+')">';
     if(manageMode) {
       h+='<div class="tile-del" onclick="event.stopPropagation();openDelete(\''+selCat.id+'\','+origIdx+')">\u2715</div>';
@@ -1265,7 +1575,7 @@ function renderAlerts() {
   for(var i=0;i<filtered.length;i++){
     var a=filtered[i];
     var isZero=a.item.stock===0;
-    var isCrit=a.item.stock>0&&a.item.stock<=5;
+    var isCrit=a.item.stock>0&&a.item.stock<=(a.item.alertCrit||5);
     var cls=isZero?"zero":"low";
     var stockColor=isZero?"#f85149":isCrit?"#f85149":"#d29922";
     var statusText=isZero?"OUT OF STOCK":isCrit?"CRITICAL":"LOW STOCK";
@@ -1279,7 +1589,8 @@ function renderAlerts() {
     h+='<div class="alert-item-name">'+a.item.name+'</div>';
     if(a.item.nameEs) h+='<div style="font-size:10px;color:#8b949e;font-style:italic">'+a.item.nameEs+'</div>';
     h+='<div class="alert-item-cat">'+(a.cat?a.cat.emoji+" "+a.cat.name:"")+'</div>';
-    h+='<div style="margin-top:3px"><span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:'+stockColor+'22;color:'+stockColor+';border:1px solid '+stockColor+'44">'+statusText+'</span></div>';
+    h+='<div style="margin-top:3px"><span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:'+stockColor+'22;color:'+stockColor+';border:1px solid '+stockColor+'44">'+statusText+'</span>';
+    h+=' <span style="font-size:9px;color:#484f58">alert \u2264 '+(isZero||isCrit?(a.item.alertCrit||5):(a.item.alertLow||15))+'</span></div>';
     h+='</div>';
     // Stock number
     h+='<div class="alert-item-stock">';
@@ -1343,13 +1654,15 @@ function renderCount() {
 function renderAdmin() {
   var h=renderHeader("Admin Panel","\u2699\uFE0F Management");
   h+='<div class="admin-nav">';
-  var tabs=[["dashboard","\uD83D\uDCCA Dashboard"],["products","\uD83D\uDCE6 Products"],["export","\uD83D\uDCE5 Export"],["api","\uD83D\uDD17 API"]];
+  var tabs=[["dashboard","\uD83D\uDCCA Dashboard"],["products","\uD83D\uDCE6 Products"],["export","\uD83D\uDCE5 Export"],["api","\uD83D\uDD17 API"],["ai","\uD83E\uDDE0 AI Tools"],["system","\u2699\uFE0F System"]];
   for(var i=0;i<tabs.length;i++) h+='<button class="admin-tab'+(adminTab===tabs[i][0]?' active':'')+'" onclick="adminTab=\''+tabs[i][0]+'\';render()">'+tabs[i][1]+'</button>';
   h+='</div><div class="admin-section">';
   if(adminTab==="dashboard") h+=renderDashboard();
   else if(adminTab==="products") h+=renderProductList();
   else if(adminTab==="export") h+=renderExport();
   else if(adminTab==="api") h+=renderApi();
+  else if(adminTab==="ai") h+=renderAiTools();
+  else if(adminTab==="system") h+=renderSystem();
   h+='</div>';
   return h;
 }
@@ -1403,7 +1716,7 @@ function renderProductList() {
   }
   h+='</div>';
   // Table
-  h+='<div style="overflow-x:auto"><table class="prod-table"><thead><tr><th></th><th>Name</th><th>Spanish</th><th>Locations</th><th>Stock</th><th>$</th><th></th></tr></thead><tbody>';
+  h+='<div style="overflow-x:auto"><table class="prod-table"><thead><tr><th></th><th>Name</th><th>Loc</th><th>Stock</th><th>\uD83D\uDD14 Alert</th><th>$</th><th></th></tr></thead><tbody>';
   var all=allItemsFlat();
   if(searchQuery){var q=searchQuery.toLowerCase();all=all.filter(function(x){return x.item.name.toLowerCase().indexOf(q)!==-1||(x.item.nameEs||"").toLowerCase().indexOf(q)!==-1;});}
   all.sort(function(a,b){var va,vb;
@@ -1414,7 +1727,7 @@ function renderProductList() {
     if(va<vb)return sortDir==="asc"?-1:1;if(va>vb)return sortDir==="asc"?1:-1;return 0;
   });
   for(var i=0;i<all.length;i++){var it=all[i].item,cat=all[i].cat;
-    var st=it.stock<5?"critical":it.stock<15?"low":"ok";
+    var st=it.stock<=(it.alertCrit||5)?"critical":it.stock<=(it.alertLow||15)?"low":"ok";
     // Location icons
     var locHtml="";
     if(it.loc&&it.loc.length>0){for(var li=0;li<it.loc.length;li++){for(var si=0;si<STORAGES.length;si++){if(STORAGES[si].id===it.loc[li]){locHtml+='<span title="'+STORAGES[si].name+'" style="font-size:12px">'+STORAGES[si].icon+'</span> ';break;}}}}
@@ -1422,6 +1735,7 @@ function renderProductList() {
     h+='<tr><td>'+itemImg(it,28)+'</td><td style="font-weight:600">'+it.name+'<div style="font-size:10px;color:#8b949e;font-style:italic">'+(it.nameEs||"")+'</div></td>';
     h+='<td style="font-size:11px">'+locHtml+'</td>';
     h+='<td class="mono" style="font-weight:700"><span class="status-dot status-'+st+'"></span>'+it.stock+'</td>';
+    h+='<td style="font-size:10px;white-space:nowrap"><span style="color:#f85149" title="Critical">\u26D4'+(it.alertCrit||5)+'</span> <span style="color:#d29922" title="Low">\u26A0'+(it.alertLow||15)+'</span></td>';
     h+='<td class="mono">$'+it.price.toFixed(2)+'</td>';
     h+='<td><button style="padding:4px 8px;border-radius:6px;border:1px solid rgba(88,166,255,0.3);background:rgba(88,166,255,0.08);color:#58a6ff;font-size:10px;font-weight:600;cursor:pointer" onclick="openEdit(\''+all[i].catId+'\','+all[i].idx+')">\u270F</button></td></tr>';
     if(it.subs)for(var s=0;s<it.subs.length;s++){var sub=it.subs[s];
@@ -1490,6 +1804,147 @@ function renderApi() {
   return h;
 }
 
+// ========== AI TOOLS TAB ==========
+function renderAiTools() {
+  var h='<div style="font-size:15px;font-weight:700;margin-bottom:12px">\uD83E\uDDE0 AI Tools & Updates</div>';
+
+  // Status
+  h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">';
+  h+='<div style="flex:1"><div style="font-size:12px;color:#8b949e">Last checked</div>';
+  h+='<div style="font-size:13px;font-weight:600">'+(aiLastCheck||"Never")+'</div></div>';
+  if(aiCheckLoading) {
+    h+='<div style="padding:8px 16px;border-radius:10px;background:rgba(139,92,246,0.1);color:#a78bfa;font-size:12px;font-weight:600" class="ai-pulse">\uD83D\uDD04 Checking...</div>';
+  } else {
+    h+='<button style="padding:8px 16px;border-radius:10px;border:1px solid rgba(139,92,246,0.3);background:rgba(139,92,246,0.08);color:#a78bfa;font-size:12px;font-weight:600;cursor:pointer" onclick="checkAiUpdates()">\uD83D\uDD0D Check for Updates</button>';
+  }
+  h+='</div>';
+
+  if(!claudeApiKey) {
+    h+='<div style="padding:16px;border-radius:14px;border:1px solid rgba(210,153,34,0.2);background:rgba(210,153,34,0.04);text-align:center">';
+    h+='<div style="font-size:32px;margin-bottom:8px">\uD83D\uDD11</div>';
+    h+='<div style="font-size:13px;color:#d29922;font-weight:600">Claude API Key Required</div>';
+    h+='<div style="font-size:12px;color:#8b949e;margin-top:4px">Set your API key in the \uD83D\uDD17 API tab to enable AI updates</div></div>';
+    return h;
+  }
+
+  // Updates list
+  if(aiUpdates.length===0) {
+    h+='<div style="text-align:center;padding:32px;color:#8b949e">';
+    h+='<div style="font-size:40px;margin-bottom:8px">\uD83D\uDE80</div>';
+    h+='<div style="font-size:14px">No updates yet</div>';
+    h+='<div style="font-size:12px;margin-top:4px">Tap "Check for Updates" to scan for relevant AI tools</div></div>';
+  } else {
+    h+='<div style="font-size:12px;color:#8b949e;margin-bottom:8px">'+aiUpdates.length+' tools found</div>';
+    for(var i=0;i<aiUpdates.length;i++){var u=aiUpdates[i];
+      var relColor=u.relevance>=4?"#3fb950":u.relevance>=3?"#d29922":"#8b949e";
+      h+='<div class="ai-update-card">';
+      h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
+      h+='<div class="ai-update-title">'+u.name+'</div>';
+      h+='<div style="margin-left:auto;font-size:10px;font-weight:700;color:'+relColor+';padding:2px 8px;border-radius:6px;border:1px solid '+relColor+'44;background:'+relColor+'15">'+u.relevance+'/5</div>';
+      h+='</div>';
+      h+='<div class="ai-update-body">'+u.desc+'</div>';
+      if(u.integration) h+='<div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:rgba(88,166,255,0.06);border:1px solid rgba(88,166,255,0.1);font-size:11px;color:#58a6ff">\uD83D\uDD27 <strong>Integration:</strong> '+u.integration+'</div>';
+      h+='</div>';
+    }
+  }
+
+  h+='<div style="margin-top:16px;padding:12px;border-radius:12px;background:rgba(139,92,246,0.04);border:1px solid rgba(139,92,246,0.1);font-size:11px;color:#8b949e;line-height:1.5">';
+  h+='\uD83D\uDCA1 AI checks use your Claude API key (Sonnet 4). Each check costs ~$0.01 in API credits. Results are cached locally.</div>';
+  return h;
+}
+
+// ========== SYSTEM TAB ==========
+function renderSystem() {
+  var h='<div style="font-size:15px;font-weight:700;margin-bottom:12px">\u2699\uFE0F System & Migration</div>';
+
+  // App info
+  h+='<div style="padding:16px;border-radius:14px;border:1px solid rgba(88,166,255,0.15);background:rgba(88,166,255,0.04);margin-bottom:12px">';
+  h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">';
+  h+='<div style="font-size:28px">\uD83D\uDCE6</div>';
+  h+='<div><div style="font-size:14px;font-weight:700">Smart Inventory v'+APP_VERSION+'</div>';
+  h+='<div style="font-size:11px;color:#8b949e">PWA \u00B7 Vanilla JS \u00B7 Offline Ready</div></div></div>';
+  var all=allItemsFlat();
+  h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11px;text-align:center">';
+  h+='<div><div style="font-size:18px;font-weight:800;color:#58a6ff">'+all.length+'</div>Products</div>';
+  h+='<div><div style="font-size:18px;font-weight:800;color:#3fb950">'+txLog.length+'</div>Transactions</div>';
+  h+='<div><div style="font-size:18px;font-weight:800;color:#a78bfa">'+CATEGORIES.length+'</div>Categories</div>';
+  h+='</div></div>';
+
+  // Export state
+  h+='<div style="font-size:13px;font-weight:600;color:#8b949e;margin:16px 0 8px;text-transform:uppercase;letter-spacing:0.06em">\uD83D\uDCBE Data Backup & Migration</div>';
+
+  h+='<div class="export-card" onclick="exportAppState()">';
+  h+='<div style="display:flex;align-items:center;gap:10px">';
+  h+='<div style="font-size:24px">\uD83D\uDCE4</div>';
+  h+='<div style="flex:1"><div style="font-size:13px;font-weight:600">\uFE0F Export Full State (JSON)</div>';
+  h+='<div style="font-size:11px;color:#8b949e">All products, transactions, settings \u2014 for backup or migration to external app</div></div>';
+  h+='<div style="color:#58a6ff">\u2192</div></div></div>';
+
+  h+='<div class="export-card" onclick="document.getElementById(\'import-state\').click()">';
+  h+='<div style="display:flex;align-items:center;gap:10px">';
+  h+='<div style="font-size:24px">\uD83D\uDCE5</div>';
+  h+='<div style="flex:1"><div style="font-size:13px;font-weight:600">Import State (JSON)</div>';
+  h+='<div style="font-size:11px;color:#8b949e">Restore from backup or sync from another device</div></div>';
+  h+='<div style="color:#58a6ff">\u2192</div></div></div>';
+  h+='<input type="file" id="import-state" accept=".json" style="display:none" onchange="importAppState(this)">';
+
+  h+='<div class="export-card" onclick="var p=getApiPayload();navigator.clipboard.writeText(JSON.stringify(p,null,2)).then(function(){showModal=\'success\';render();setTimeout(function(){showModal=\'\';render();},1200);})">';
+  h+='<div style="display:flex;align-items:center;gap:10px">';
+  h+='<div style="font-size:24px">\uD83D\uDCCB</div>';
+  h+='<div style="flex:1"><div style="font-size:13px;font-weight:600">Copy API Payload</div>';
+  h+='<div style="font-size:11px;color:#8b949e">Copy REST-ready JSON payload to clipboard for external integration</div></div>';
+  h+='<div style="color:#58a6ff">\u2192</div></div></div>';
+
+  // Migration readiness
+  h+='<div style="font-size:13px;font-weight:600;color:#8b949e;margin:16px 0 8px;text-transform:uppercase;letter-spacing:0.06em">\uD83D\uDCF2 External Barcode Scanner</div>';
+
+  h+='<div style="padding:16px;border-radius:14px;border:1px solid rgba(63,185,80,0.15);background:rgba(63,185,80,0.04);margin-bottom:16px">';
+  h+='<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">';
+  h+='<div style="font-size:28px">\uD83D\uDD0B</div>';
+  h+='<div style="flex:1"><div style="font-size:14px;font-weight:700">USB / Bluetooth Scanner</div>';
+  h+='<div style="font-size:11px;color:#8b949e">Keyboard-wedge mode \u2014 reads barcodes as keystrokes</div></div>';
+  h+='<button style="padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;border:none;cursor:pointer;'+(extScannerEnabled?"background:#3fb950;color:#000":"background:rgba(255,255,255,0.08);color:#8b949e")+'" onclick="extScannerEnabled=!extScannerEnabled;localStorage.setItem(\'extScannerEnabled\',extScannerEnabled);render()">'+(extScannerEnabled?"ON":"OFF")+'</button>';
+  h+='</div>';
+
+  if(extScannerEnabled) {
+    h+='<div style="padding:10px;border-radius:10px;background:rgba(63,185,80,0.06);border:1px solid rgba(63,185,80,0.1);margin-bottom:10px">';
+    h+='<div style="display:flex;align-items:center;gap:6px"><div class="scanner-pulse"></div>';
+    h+='<span style="font-size:12px;color:#3fb950;font-weight:600">Actively listening for scanner input</span></div>';
+    if(extScannerLastHit) h+='<div style="font-size:10px;color:#8b949e;margin-top:4px;font-family:monospace">Last scanned: '+extScannerLastHit+'</div>';
+    h+='</div>';
+  }
+
+  h+='<div style="font-size:11px;color:#8b949e;line-height:1.6">';
+  h+='\uD83D\uDCA1 <strong>How it works:</strong> USB and Bluetooth barcode scanners operate in "keyboard wedge" mode \u2014 they send barcode digits as rapid keystrokes followed by Enter. The system detects this pattern automatically.<br><br>';
+  h+='<strong>Compatible devices:</strong> Any scanner that sends keystrokes (most USB/Bluetooth models). Mount next to the tablet near storage areas for quick scanning.<br><br>';
+  h+='<strong>Supported formats:</strong> EAN-13, EAN-8, UPC-A, UPC-E, Code 128, Code 39, QR Code</div>';
+  h+='</div>';
+
+  h+='<div style="font-size:13px;font-weight:600;color:#8b949e;margin:16px 0 8px;text-transform:uppercase;letter-spacing:0.06em">\uD83D\uDE80 Migration Readiness</div>';
+  h+='<div style="padding:14px;border-radius:14px;border:1px solid rgba(63,185,80,0.15);background:rgba(63,185,80,0.04)">';
+
+  var checks=[
+    {name:"Product data model",ok:true,note:all.length+" items with barcode, locations, alerts"},
+    {name:"Transaction log",ok:txLog.length>0,note:txLog.length+" entries recorded"},
+    {name:"Claude API integration",ok:!!claudeApiKey,note:claudeApiKey?"Connected":"Not configured"},
+    {name:"Barcode support",ok:barcodeDetectorSupported,note:barcodeDetectorSupported?"Native BarcodeDetector":"Manual entry only"},
+    {name:"JSON export format",ok:true,note:"REST-ready API payload available"},
+    {name:"Offline PWA",ok:true,note:"Service worker + manifest configured"}
+  ];
+  for(var i=0;i<checks.length;i++){var ck=checks[i];
+    h+='<div style="display:flex;align-items:center;gap:8px;padding:6px 0;'+(i<checks.length-1?"border-bottom:1px solid rgba(255,255,255,0.04)":"")+'">';
+    h+='<div style="font-size:14px">'+(ck.ok?"\u2705":"\u26A0\uFE0F")+'</div>';
+    h+='<div style="flex:1;font-size:12px;font-weight:600">'+ck.name+'</div>';
+    h+='<div style="font-size:10px;color:#8b949e">'+ck.note+'</div></div>';
+  }
+  h+='</div>';
+
+  h+='<div style="margin-top:16px;padding:12px;border-radius:12px;background:rgba(139,92,246,0.04);border:1px solid rgba(139,92,246,0.1);font-size:11px;color:#8b949e;line-height:1.6">';
+  h+='\uD83D\uDCA1 <strong>External App Migration:</strong> The JSON export contains the complete data model in a standard format. Any Node.js/Python/React app can import this directly. The API payload format matches REST conventions for easy integration with Express, Flask, or similar backends.</div>';
+
+  return h;
+}
+
 // ========== MODALS ==========
 function renderPin() {
   var h='<div class="pin-screen"><div style="font-size:44px;margin-bottom:12px">\uD83D\uDD10</div>';
@@ -1528,6 +1983,16 @@ function renderAddModal() {
   h+='<select class="form-select" id="add-unit"><option value="kg">kg</option><option value="pcs">pcs</option><option value="L">L</option><option value="g">g</option></select></div>';
   h+='<div class="form-group"><label class="form-label">Stock</label><input class="form-input" id="add-stock" type="number" placeholder="0"></div>';
   h+='<div class="form-group"><label class="form-label">Price</label><input class="form-input" id="add-price" type="number" step="0.01" placeholder="0"></div></div>';
+  // Alert thresholds
+  h+='<div class="form-group"><label class="form-label">\uD83D\uDD14 Alert Thresholds</label>';
+  h+='<div style="display:flex;gap:8px;margin-top:4px">';
+  h+='<div style="flex:1;padding:8px;border-radius:10px;border:1px solid rgba(248,81,73,0.2);background:rgba(248,81,73,0.04)">';
+  h+='<div style="font-size:10px;color:#f85149;font-weight:600;margin-bottom:4px">\u26D4 Critical \u2264</div>';
+  h+='<input class="form-input" id="add-alertCrit" type="number" value="5" style="text-align:center;font-weight:700;border-color:rgba(248,81,73,0.2)"></div>';
+  h+='<div style="flex:1;padding:8px;border-radius:10px;border:1px solid rgba(210,153,34,0.2);background:rgba(210,153,34,0.04)">';
+  h+='<div style="font-size:10px;color:#d29922;font-weight:600;margin-bottom:4px">\u26A0\uFE0F Low \u2264</div>';
+  h+='<input class="form-input" id="add-alertLow" type="number" value="15" style="text-align:center;font-weight:700;border-color:rgba(210,153,34,0.2)"></div>';
+  h+='</div></div>';
   // Location checkboxes
   h+='<div class="form-group"><label class="form-label">Storage Locations</label>';
   h+='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">';
@@ -1562,6 +2027,19 @@ function renderEditModal() {
   h+='<div class="form-row"><div class="form-group"><label class="form-label">Unit</label>';
   h+='<select class="form-select" id="edit-unit"><option value="kg"'+(it.unit==="kg"?" selected":"")+'>kg</option><option value="pcs"'+(it.unit==="pcs"?" selected":"")+'>pcs</option><option value="L"'+(it.unit==="L"?" selected":"")+'>L</option><option value="g"'+(it.unit==="g"?" selected":"")+'>g</option></select></div>';
   h+='<div class="form-group"><label class="form-label">Price</label><input class="form-input" id="edit-price" type="number" step="0.01" value="'+it.price+'"></div></div>';
+  // Alert thresholds
+  h+='<div class="form-group"><label class="form-label">\uD83D\uDD14 Alert Thresholds</label>';
+  h+='<div style="display:flex;gap:8px;margin-top:4px">';
+  h+='<div style="flex:1;padding:10px;border-radius:10px;border:1px solid rgba(248,81,73,0.2);background:rgba(248,81,73,0.04)">';
+  h+='<div style="font-size:10px;color:#f85149;font-weight:600;margin-bottom:4px">\u26D4 Critical \u2264</div>';
+  h+='<input class="form-input" id="edit-alertCrit" type="number" value="'+(it.alertCrit||5)+'" style="text-align:center;font-weight:700;border-color:rgba(248,81,73,0.2)"></div>';
+  h+='<div style="flex:1;padding:10px;border-radius:10px;border:1px solid rgba(210,153,34,0.2);background:rgba(210,153,34,0.04)">';
+  h+='<div style="font-size:10px;color:#d29922;font-weight:600;margin-bottom:4px">\u26A0\uFE0F Low \u2264</div>';
+  h+='<input class="form-input" id="edit-alertLow" type="number" value="'+(it.alertLow||15)+'" style="text-align:center;font-weight:700;border-color:rgba(210,153,34,0.2)"></div>';
+  h+='</div></div>';
+  // Barcode
+  h+='<div class="form-group"><label class="form-label">\uD83D\uDCF2 Barcode</label>';
+  h+='<input class="form-input" id="edit-barcode" placeholder="Scan or enter barcode" value="'+(it.barcode||"")+'" style="font-family:monospace;font-weight:600"></div>';
   // Location checkboxes
   h+='<div class="form-group"><label class="form-label">Storage Locations</label>';
   h+='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">';
@@ -1575,6 +2053,95 @@ function renderEditModal() {
   h+='<button class="btn-save" onclick="saveEditItem()">\u2705 Save Changes</button></div></div></div>';
   return h;
 }
+function renderBarcodeOverlay() {
+  var h='<div class="barcode-overlay">';
+
+  if(lastBarcode && lastBarcode!=="CAMERA_ERROR" && lastBarcode!=="NO_DETECTOR") {
+    // === RESULT SCREEN ===
+    var found=findItemByBarcode(lastBarcode);
+    h+='<div style="font-size:32px;margin-bottom:8px">'+(found?"\u2705":"\u274C")+'</div>';
+    h+='<div class="barcode-result">'+lastBarcode+'</div>';
+    if(found) {
+      h+='<div style="margin-top:16px;padding:16px;border-radius:14px;background:rgba(63,185,80,0.1);border:1px solid rgba(63,185,80,0.25);text-align:center;width:90%;max-width:320px">';
+      h+='<div style="font-size:13px;color:#3fb950;font-weight:600">Product Found!</div>';
+      h+='<div style="margin:8px 0">'+itemImg(found.item,56)+'</div>';
+      h+='<div style="color:#fff;font-size:16px;font-weight:700">'+found.item.name+'</div>';
+      if(found.item.nameEs) h+='<div style="color:#8b949e;font-size:12px;font-style:italic">'+found.item.nameEs+'</div>';
+      h+='<div style="color:#58a6ff;font-size:13px;margin-top:4px">Stock: '+found.item.stock+' '+found.item.unit+'</div>';
+      h+='</div>';
+      h+='<button class="barcode-btn" style="background:#3fb950;color:#000" onclick="handleBarcodeResult(\''+lastBarcode+'\')">\u2705 Select This Item</button>';
+    } else {
+      h+='<div style="margin-top:16px;padding:16px;border-radius:14px;background:rgba(248,81,73,0.1);border:1px solid rgba(248,81,73,0.25);text-align:center;width:90%;max-width:320px">';
+      h+='<div style="font-size:13px;color:#f85149;font-weight:600">No product with this barcode</div>';
+      h+='<div style="font-size:11px;color:#8b949e;margin-top:4px">Assign it in Admin \u2192 Products \u2192 Edit</div>';
+      h+='</div>';
+      h+='<button class="barcode-btn" style="background:rgba(88,166,255,0.15);color:#58a6ff" onclick="lastBarcode=\'\';startBarcodeScan()">\uD83D\uDD04 Scan Again</button>';
+    }
+  } else {
+    // === SCAN MODE SELECTION ===
+    h+='<div style="font-size:36px;margin-bottom:6px">\uD83D\uDCF2</div>';
+    h+='<div style="color:#fff;font-size:20px;font-weight:700;margin-bottom:4px">Barcode Scanner</div>';
+    h+='<div style="color:#8b949e;font-size:12px;margin-bottom:20px">Choose scan method</div>';
+
+    h+='<div style="width:90%;max-width:380px;display:flex;flex-direction:column;gap:10px">';
+
+    // Method 1: Camera
+    h+='<div style="padding:16px;border-radius:16px;border:1px solid rgba(88,166,255,0.2);background:rgba(88,166,255,0.04)">';
+    h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">';
+    h+='<div style="width:40px;height:40px;border-radius:12px;background:rgba(88,166,255,0.15);display:flex;align-items:center;justify-content:center;font-size:20px">\uD83D\uDCF7</div>';
+    h+='<div><div style="color:#fff;font-size:14px;font-weight:700">Phone Camera</div>';
+    h+='<div style="font-size:11px;color:#8b949e">Point camera at barcode</div></div></div>';
+
+    if(lastBarcode==="CAMERA_ERROR") {
+      h+='<div style="padding:8px;border-radius:8px;background:rgba(248,81,73,0.1);border:1px solid rgba(248,81,73,0.15);font-size:11px;color:#f85149;text-align:center">\u26A0 Camera not available on this device</div>';
+    } else if(lastBarcode==="NO_DETECTOR") {
+      // Camera works but no BarcodeDetector - show video with manual
+      h+='<video id="barcode-video" class="barcode-video" autoplay playsinline muted style="width:100%;margin-bottom:8px"></video>';
+      h+='<div style="font-size:11px;color:#d29922;text-align:center">BarcodeDetector not supported \u2014 use external scanner or manual entry</div>';
+    } else {
+      // Camera active
+      h+='<video id="barcode-video" class="barcode-video" autoplay playsinline muted style="width:100%"></video>';
+      h+='<div style="text-align:center;margin-top:6px">';
+      h+='<span class="ai-pulse" style="font-size:12px;color:#58a6ff">\uD83D\uDD0D Scanning automatically...</span></div>';
+    }
+    h+='</div>';
+
+    // Method 2: External Scanner
+    h+='<div style="padding:16px;border-radius:16px;border:1px solid rgba(63,185,80,0.2);background:rgba(63,185,80,0.04)">';
+    h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">';
+    h+='<div style="width:40px;height:40px;border-radius:12px;background:rgba(63,185,80,0.15);display:flex;align-items:center;justify-content:center;font-size:20px">\uD83D\uDD0B</div>';
+    h+='<div><div style="color:#fff;font-size:14px;font-weight:700">External Scanner</div>';
+    h+='<div style="font-size:11px;color:#8b949e">USB / Bluetooth barcode device</div></div>';
+    if(extScannerEnabled) h+='<div style="margin-left:auto"><div class="scanner-pulse"></div></div>';
+    h+='</div>';
+    if(extScannerEnabled) {
+      h+='<div style="padding:8px 10px;border-radius:8px;background:rgba(63,185,80,0.08);border:1px solid rgba(63,185,80,0.12);font-size:11px;color:#3fb950;text-align:center">';
+      h+='\u2705 Listening \u2014 scan any barcode with your device</div>';
+    } else {
+      h+='<div style="padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.03);font-size:11px;color:#484f58;text-align:center">';
+      h+='Disabled \u2014 enable in Admin \u2192 \u2699 System</div>';
+    }
+    h+='</div>';
+
+    // Method 3: Manual entry
+    h+='<div style="padding:16px;border-radius:16px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.02)">';
+    h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">';
+    h+='<div style="width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:20px">\u2328\uFE0F</div>';
+    h+='<div><div style="color:#fff;font-size:14px;font-weight:700">Manual Entry</div>';
+    h+='<div style="font-size:11px;color:#8b949e">Type barcode number</div></div></div>';
+    h+='<div style="display:flex;gap:6px">';
+    h+='<input id="barcode-manual" class="form-input" style="flex:1;text-align:center;font-size:18px;font-weight:700;font-family:monospace" placeholder="0000000000000" inputmode="numeric">';
+    h+='<button style="padding:10px 16px;border-radius:12px;background:#3fb950;color:#000;font-weight:700;font-size:13px;border:none;cursor:pointer" onclick="var v=(document.getElementById(\'barcode-manual\')||{}).value;if(v)handleBarcodeResult(v);">\u2192</button>';
+    h+='</div></div>';
+
+    h+='</div>'; // end methods container
+  }
+
+  h+='<button class="barcode-btn" style="background:rgba(255,255,255,0.1);color:#fff;margin-top:12px" onclick="stopBarcodeScan()">\u2715 Close</button>';
+  h+='</div>';
+  return h;
+}
+
 function renderInvoiceModal() {
   if(scanState==="capturing") {
     var h='<div class="modal-overlay"><div class="modal-card" style="max-width:480px">';
