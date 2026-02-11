@@ -46,6 +46,49 @@ input,select,textarea{font-family:inherit;color:inherit}
 .online-dot{width:7px;height:7px;border-radius:50%;background:#3fb950;box-shadow:0 0 6px #3fb950}
 
 /* ===== MAIN MENU ===== */
+.main-wrap{max-width:520px;margin:0 auto;padding:0 16px}
+/* Hero greeting */
+.main-hero{padding:20px 4px 8px;display:flex;align-items:center;justify-content:space-between}
+.main-hero-left{display:flex;flex-direction:column;gap:2px}
+.main-hero-title{font-size:22px;font-weight:800;letter-spacing:-0.03em}
+.main-hero-sub{font-size:12px;color:#8b949e}
+.main-hero-time{font-size:28px}
+/* Stats row */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px}
+.stat-box{text-align:center;padding:14px 4px 12px;border-radius:16px;background:linear-gradient(160deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.06);position:relative;overflow:hidden}
+.stat-box::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:30px;height:2px;border-radius:0 0 2px 2px}
+.stat-val{font-size:20px;font-weight:800;line-height:1}
+.stat-lbl{font-size:9px;color:#484f58;margin-top:5px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em}
+/* Action grid — 2x2 */
+.action-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.action-card{border-radius:18px;padding:20px 16px;border:1px solid;position:relative;overflow:hidden;cursor:pointer;transition:all 0.2s;display:flex;flex-direction:column;align-items:flex-start;gap:10px;min-height:110px}
+.action-card:active{transform:scale(0.96);filter:brightness(0.9)}
+.action-card-glow{position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;opacity:0.12;pointer-events:none}
+.action-card-icon{font-size:28px;line-height:1;position:relative;z-index:1}
+.action-card-title{font-size:16px;font-weight:800;letter-spacing:-0.02em;position:relative;z-index:1}
+.action-card-sub{font-size:10px;color:#8b949e;line-height:1.4;position:relative;z-index:1}
+/* Quick tools strip */
+.tools-strip{display:flex;gap:6px;margin-bottom:10px;overflow-x:auto;padding-bottom:2px}
+.tool-chip{display:flex;align-items:center;gap:5px;padding:9px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.025);font-size:11px;font-weight:600;color:#c9d1d9;white-space:nowrap;cursor:pointer;transition:all 0.15s;flex-shrink:0}
+.tool-chip:active{transform:scale(0.95);background:rgba(255,255,255,0.05)}
+.tool-chip-icon{font-size:15px}
+/* Recent items bar */
+.recent-bar{margin-bottom:10px}
+.recent-bar-title{font-size:9px;font-weight:700;color:#484f58;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:5px}
+.recent-chips{display:flex;gap:5px;overflow-x:auto;padding-bottom:2px}
+.recent-chip{flex-shrink:0;display:flex;align-items:center;gap:5px;padding:7px 11px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.025);font-size:11px;font-weight:600;cursor:pointer;transition:all 0.12s}
+.recent-chip:active{background:rgba(255,255,255,0.06)}
+/* Alert compact banners */
+.alert-row{display:flex;gap:6px;margin-bottom:10px}
+.alert-mini{flex:1;display:flex;align-items:center;gap:8px;padding:12px 14px;border-radius:14px;cursor:pointer;transition:all 0.15s}
+.alert-mini:active{transform:scale(0.97)}
+.alert-mini-icon{font-size:20px}
+.alert-mini-txt{font-size:12px;font-weight:700}
+.alert-mini-n{font-size:18px;font-weight:800;margin-left:auto;font-family:'JetBrains Mono',monospace}
+/* Activity footer */
+.activity-footer{text-align:center;padding:8px 0 16px;font-size:11px;color:#484f58}
+.activity-footer strong{color:#8b949e}
+/* Legacy compat */
 .main-menu{display:flex;flex-direction:column;gap:16px;padding:24px 20px;max-width:520px;margin:0 auto}
 .menu-card{border-radius:22px;padding:0;overflow:hidden;display:flex;border:1px solid;transition:all 0.25s;position:relative;box-shadow:0 4px 20px rgba(0,0,0,0.15)}
 .menu-card:active{transform:scale(0.97);box-shadow:0 2px 8px rgba(0,0,0,0.1)}
@@ -1508,77 +1551,98 @@ function renderHeader(title, sub) {
 }
 
 function renderMain() {
-  var h=renderHeader("Smart Inventory","\uD83C\uDF73 Kitchen Management");
-  // Quick stats strip
+  var h=renderHeader("Smart Inventory","");
   var ts=totalStock(),tv=totalValue(),lsc=lowStockCount();
-  h+='<div class="quick-stats">';
-  h+='<div class="quick-stat"><div class="quick-stat-val mono" style="color:#58a6ff">'+ts+'</div><div class="quick-stat-label">Items</div></div>';
-  h+='<div class="quick-stat"><div class="quick-stat-val mono" style="color:#3fb950">$'+tv.toFixed(0)+'</div><div class="quick-stat-label">Value</div></div>';
-  h+='<div class="quick-stat"><div class="quick-stat-val mono" style="color:'+(lsc>0?"#f85149":"#3fb950")+'">'+lsc+'</div><div class="quick-stat-label">Low Stock</div></div>';
-  h+='<div class="quick-stat"><div class="quick-stat-val mono" style="color:#a78bfa">'+CATEGORIES.length+'</div><div class="quick-stat-label">Categories</div></div>';
-  h+='</div>';
-  // Alert banners
   var zeroN=getZeroCount(),lowN=getLowCount();
+  h+='<div class="main-wrap">';
+
+  // ── Hero greeting ──
+  var d=new Date();var hrs=d.getHours();
+  var greeting=hrs<12?"Good Morning":hrs<17?"Good Afternoon":"Good Evening";
+  var timeStr=d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+  h+='<div class="main-hero"><div class="main-hero-left"><div class="main-hero-title">'+greeting+' \uD83D\uDC4B</div>';
+  h+='<div class="main-hero-sub">'+d.toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric"})+'</div></div>';
+  h+='<div class="main-hero-time">'+timeStr+'</div></div>';
+
+  // ── Stats row ──
+  h+='<div class="stats-row">';
+  h+='<div class="stat-box"><div class="stat-val mono" style="color:#58a6ff">'+ts+'</div><div class="stat-lbl">Items</div></div>';
+  h+='<div class="stat-box"><div class="stat-val mono" style="color:#3fb950">$'+tv.toFixed(0)+'</div><div class="stat-lbl">Value</div></div>';
+  h+='<div class="stat-box"><div class="stat-val mono" style="color:'+(lsc>0?"#f85149":"#3fb950")+'">'+lsc+'</div><div class="stat-lbl">Low Stock</div></div>';
+  h+='<div class="stat-box"><div class="stat-val mono" style="color:#a78bfa">'+txLog.length+'</div><div class="stat-lbl">Actions</div></div>';
+  h+='</div>';
+
+  // ── Alert banners (compact) ──
   if(zeroN>0||lowN>0) {
-    h+='<div class="alert-banner">';
+    h+='<div class="alert-row">';
     if(zeroN>0) {
-      h+='<div class="alert-card critical" onclick="alertFilter=\'zero\';screen=\'alerts\';render()">';
-      h+='<div class="alert-icon">\u26D4</div><div class="alert-body">';
-      h+='<div class="alert-title" style="color:#f85149">Out of Stock</div>';
-      h+='<div class="alert-sub">'+zeroN+' item'+(zeroN>1?'s':'')+' at zero \u2014 tap to view</div></div>';
-      h+='<div class="alert-count" style="color:#f85149">'+zeroN+'</div></div>';
+      h+='<div class="alert-mini" style="background:rgba(248,81,73,0.08);border:1px solid rgba(248,81,73,0.2)" onclick="alertFilter=\'zero\';screen=\'alerts\';render()">';
+      h+='<div class="alert-mini-icon">\u26D4</div><div class="alert-mini-txt" style="color:#f85149">Out of Stock</div>';
+      h+='<div class="alert-mini-n" style="color:#f85149">'+zeroN+'</div></div>';
     }
     if(lowN>0) {
-      h+='<div class="alert-card warning" style="margin-top:6px" onclick="alertFilter=\'low\';screen=\'alerts\';render()">';
-      h+='<div class="alert-icon">\u26A0\uFE0F</div><div class="alert-body">';
-      h+='<div class="alert-title" style="color:#d29922">Low Stock</div>';
-      h+='<div class="alert-sub">'+lowN+' item'+(lowN>1?'s':'')+' running low \u2014 tap to view</div></div>';
-      h+='<div class="alert-count" style="color:#d29922">'+lowN+'</div></div>';
+      h+='<div class="alert-mini" style="background:rgba(210,153,34,0.08);border:1px solid rgba(210,153,34,0.2)" onclick="alertFilter=\'low\';screen=\'alerts\';render()">';
+      h+='<div class="alert-mini-icon">\u26A0\uFE0F</div><div class="alert-mini-txt" style="color:#d29922">Low Stock</div>';
+      h+='<div class="alert-mini-n" style="color:#d29922">'+lowN+'</div></div>';
     }
     h+='</div>';
   }
-  h+='<div class="main-menu">';
+
+  // ── Action Grid 2x2 ──
+  h+='<div class="action-grid">';
   // Stock In
-  h+='<button class="menu-card" style="background:linear-gradient(135deg,rgba(63,185,80,0.1),rgba(63,185,80,0.02));border-color:rgba(63,185,80,0.25);--card-bg:rgba(10,14,19,0.9)" onclick="setMode(\'in\')">';
-  h+='<div class="menu-card-img" style="background-image:url(\''+((PRODUCT_IMAGES["carrots_19"])||"")+'\')"></div>';
-  h+='<div class="menu-card-body"><div class="menu-card-icon">\uD83D\uDCE5</div><div class="menu-card-title">Stock In</div><div class="menu-card-sub">Receive deliveries & add inventory</div></div></button>';
+  h+='<div class="action-card" style="background:linear-gradient(145deg,rgba(63,185,80,0.1),rgba(63,185,80,0.02));border-color:rgba(63,185,80,0.2)" onclick="setMode(\'in\')">';
+  h+='<div class="action-card-glow" style="background:#3fb950"></div>';
+  h+='<div class="action-card-icon">\uD83D\uDCE5</div>';
+  h+='<div class="action-card-title" style="color:#3fb950">Stock In</div>';
+  h+='<div class="action-card-sub">Deliveries & receiving</div></div>';
   // Stock Out
-  h+='<button class="menu-card" style="background:linear-gradient(135deg,rgba(248,81,73,0.1),rgba(248,81,73,0.02));border-color:rgba(248,81,73,0.25);--card-bg:rgba(10,14,19,0.9)" onclick="setMode(\'out\')">';
-  h+='<div class="menu-card-img" style="background-image:url(\''+((PRODUCT_IMAGES["beef_sirloin_47"])||"")+'\')"></div>';
-  h+='<div class="menu-card-body"><div class="menu-card-icon">\uD83D\uDCE4</div><div class="menu-card-title">Stock Out</div><div class="menu-card-sub">Record usage, prep & waste</div></div></button>';
+  h+='<div class="action-card" style="background:linear-gradient(145deg,rgba(248,81,73,0.1),rgba(248,81,73,0.02));border-color:rgba(248,81,73,0.2)" onclick="setMode(\'out\')">';
+  h+='<div class="action-card-glow" style="background:#f85149"></div>';
+  h+='<div class="action-card-icon">\uD83D\uDCE4</div>';
+  h+='<div class="action-card-title" style="color:#f85149">Stock Out</div>';
+  h+='<div class="action-card-sub">Usage, prep & waste</div></div>';
   // Inventory Count
-  h+='<button class="menu-card" style="background:linear-gradient(135deg,rgba(88,166,255,0.1),rgba(88,166,255,0.02));border-color:rgba(88,166,255,0.25);--card-bg:rgba(10,14,19,0.9)" onclick="setMode(\'count\')">';
-  h+='<div class="menu-card-img" style="background-image:url(\''+((PRODUCT_IMAGES["apples_5"])||"")+'\')"></div>';
-  h+='<div class="menu-card-body"><div class="menu-card-icon">\uD83D\uDCCB</div><div class="menu-card-title">Inventory Count</div><div class="menu-card-sub">Physical count & adjustments</div></div></button>';
-  // Admin Panel
-  h+='<button class="menu-card" style="background:linear-gradient(135deg,rgba(139,92,246,0.1),rgba(139,92,246,0.02));border-color:rgba(139,92,246,0.25);--card-bg:rgba(10,14,19,0.9)" onclick="setMode(\'admin\')">';
-  h+='<div class="menu-card-img" style="background-image:url(\''+((PRODUCT_IMAGES["olive_oil_67"])||"")+'\')"></div>';
-  h+='<div class="menu-card-body"><div class="menu-card-icon">\u2699\uFE0F</div><div class="menu-card-title">Admin Panel</div><div class="menu-card-sub">Dashboard, exports & integrations</div></div></button>';
+  h+='<div class="action-card" style="background:linear-gradient(145deg,rgba(88,166,255,0.1),rgba(88,166,255,0.02));border-color:rgba(88,166,255,0.2)" onclick="setMode(\'count\')">';
+  h+='<div class="action-card-glow" style="background:#58a6ff"></div>';
+  h+='<div class="action-card-icon">\uD83D\uDCCB</div>';
+  h+='<div class="action-card-title" style="color:#58a6ff">Count</div>';
+  h+='<div class="action-card-sub">Physical inventory check</div></div>';
+  // Admin
+  h+='<div class="action-card" style="background:linear-gradient(145deg,rgba(139,92,246,0.1),rgba(139,92,246,0.02));border-color:rgba(139,92,246,0.2)" onclick="setMode(\'admin\')">';
+  h+='<div class="action-card-glow" style="background:#8b5cf6"></div>';
+  h+='<div class="action-card-icon">\u2699\uFE0F</div>';
+  h+='<div class="action-card-title" style="color:#a78bfa">Admin</div>';
+  h+='<div class="action-card-sub">Dashboard & settings</div></div>';
   h+='</div>';
-  // Quick action buttons
-  h+='<div class="quick-actions">';
-  h+='<button class="quick-action-btn" onclick="screen=\'transfer\';transferFrom=null;transferTo=null;render()"><span>\uD83D\uDD04</span> Transfer</button>';
-  h+='<button class="quick-action-btn" onclick="screen=\'countsheet\';countSheetMode=\'\';countSheetLoc=null;render()"><span>\uD83D\uDCCB</span> Count Sheet</button>';
-  h+='<button class="quick-action-btn" onclick="screen=\'templog\';render()"><span>\uD83C\uDF21\uFE0F</span> Temperature</button>';
-  if(isAdmin) h+='<button class="quick-action-btn" onclick="adminTab=\'variance\';screen=\'admin\';render()"><span>\uD83D\uDCCA</span> Variance</button>';
+
+  // ── Tools strip ──
+  h+='<div class="tools-strip">';
+  h+='<div class="tool-chip" onclick="screen=\'transfer\';transferFrom=null;transferTo=null;render()"><span class="tool-chip-icon">\uD83D\uDD04</span>Transfer</div>';
+  h+='<div class="tool-chip" onclick="screen=\'countsheet\';countSheetMode=\'\';countSheetLoc=null;render()"><span class="tool-chip-icon">\uD83D\uDCCB</span>Count Sheet</div>';
+  h+='<div class="tool-chip" onclick="screen=\'templog\';render()"><span class="tool-chip-icon">\uD83C\uDF21\uFE0F</span>Temperature</div>';
+  h+='<div class="tool-chip" onclick="openGlobalSearch()"><span class="tool-chip-icon">\uD83D\uDD0D</span>Search All</div>';
+  if(isAdmin) h+='<div class="tool-chip" onclick="adminTab=\'variance\';screen=\'admin\';render()"><span class="tool-chip-icon">\uD83D\uDCCA</span>Variance</div>';
   h+='</div>';
-  // Recently used items
+
+  // ── Recent items ──
   if(lastUsedItems.length>0){
-    h+='<div style="padding:8px 20px;max-width:520px;margin:0 auto">';
-    h+='<div style="font-size:11px;font-weight:600;color:#484f58;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">\u26A1 Recent Items</div>';
-    h+='<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px">';
-    for(var ri=0;ri<Math.min(lastUsedItems.length,6);ri++){var rIt=lastUsedItems[ri];
-      h+='<div onclick="quickRepeat(\''+rIt.catId+'\',\''+rIt.itemId+'\')" style="flex-shrink:0;padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.025);font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px">';
-      h+='<span style="font-size:14px">'+rIt.emoji+'</span> '+rIt.name+'</div>';
+    h+='<div class="recent-bar"><div class="recent-bar-title">\u26A1 Recently Used</div>';
+    h+='<div class="recent-chips">';
+    for(var ri=0;ri<Math.min(lastUsedItems.length,8);ri++){var rIt=lastUsedItems[ri];
+      h+='<div class="recent-chip" onclick="quickRepeat(\''+rIt.catId+'\',\''+rIt.itemId+'\')">';
+      h+='<span style="font-size:15px">'+rIt.emoji+'</span>'+rIt.name+'</div>';
     }
     h+='</div></div>';
   }
-  // Last activity
+
+  // ── Activity footer ──
   if(txLog.length>0){
     var lastTx=txLog[txLog.length-1];
     var col=lastTx.mode==="in"?"#3fb950":lastTx.mode==="out"?"#f85149":"#58a6ff";
-    h+='<div class="last-activity"><span style="color:#484f58">Last:</span> <span style="color:'+col+';font-weight:600">'+(lastTx.mode==="in"?"+":lastTx.mode==="out"?"-":"=")+lastTx.qty+' '+lastTx.unit+'</span> '+lastTx.item+' <span style="color:#484f58">\u00B7 '+lastTx.time+'</span></div>';
+    h+='<div class="activity-footer">Last: <strong style="color:'+col+'">'+(lastTx.mode==="in"?"+":lastTx.mode==="out"?"-":"=")+lastTx.qty+' '+lastTx.unit+'</strong> '+lastTx.item+' \u00B7 '+lastTx.time+'</div>';
   }
+  h+='</div>';
   return h;
 }
 function renderStockInMethod() {
@@ -1791,6 +1855,12 @@ function renderCount() {
   // Search
   h+='<div class="search-bar"><div class="search-wrap"><span class="search-icon">\uD83D\uDD0D</span>';
   h+='<input class="search-input" style="padding-left:36px" placeholder="Search products..." value="'+searchQuery+'" oninput="setSearch(this.value)"></div></div>';
+  // Sort bar
+  h+='<div class="sort-bar">';
+  var sortOpts3=[["name","\uD83D\uDD24 A-Z"],["stock","\uD83D\uDCE6 Stock"],["price","\uD83D\uDCB2 Price"]];
+  for(var si=0;si<sortOpts3.length;si++){var sActive=sortBy===sortOpts3[si][0];
+    h+='<button class="sort-pill'+(sActive?' active':'')+'" onclick="setSort(\''+sortOpts3[si][0]+'\')">'+sortOpts3[si][1]+(sActive?(sortDir==="asc"?" \u2191":" \u2193"):"")+'</button>';}
+  h+='</div>';
 
   // Build all items
   h+='<div class="count-list"><div class="count-grid">';
@@ -1798,13 +1868,25 @@ function renderCount() {
   for(var ci=0;ci<CATEGORIES.length;ci++){
     var cat=CATEGORIES[ci];
     if(countFilter!=="all"&&countFilter!==cat.id) continue;
-    var items=ITEMS_DB[cat.id]||[];
+    var items=(ITEMS_DB[cat.id]||[]).slice();
+    // Apply sort
+    items.sort(function(a,b){var va,vb;
+      if(sortBy==="name"){va=a.name.toLowerCase();vb=b.name.toLowerCase();}
+      else if(sortBy==="stock"){va=a.stock;vb=b.stock;}
+      else if(sortBy==="price"){va=a.price;vb=b.price;}
+      else{va=a.name.toLowerCase();vb=b.name.toLowerCase();}
+      if(va<vb) return sortDir==="asc"?-1:1;
+      if(va>vb) return sortDir==="asc"?1:-1;
+      return 0;
+    });
     for(var i=0;i<items.length;i++){var it=items[i];
       // Search filter
       if(searchQuery){var q=searchQuery.toLowerCase();
         if(it.name.toLowerCase().indexOf(q)===-1&&(it.nameEs||"").toLowerCase().indexOf(q)===-1) continue;
       }
-      var key=cat.id+"|"+i;
+      // Find original index for key
+      var origIdx2=-1;var origArr2=ITEMS_DB[cat.id];for(var oi2=0;oi2<origArr2.length;oi2++)if(origArr2[oi2].id===it.id){origIdx2=oi2;break;}
+      var key=cat.id+"|"+origIdx2;
       var val=(key in countChanges)?countChanges[key]:it.stock;
       var changed=(key in countChanges&&countChanges[key]!==it.stock);
       if(changed) totalChanges++;
@@ -1813,7 +1895,7 @@ function renderCount() {
       else h+='<div class="count-card-emoji">'+it.emoji+'</div>';
       h+='<div class="count-card-name">'+it.name+'</div>';
       if(it.nameEs) h+='<div style="font-size:8px;color:#8b949e;font-style:italic;text-align:center;padding:0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+it.nameEs+'</div>';
-      h+='<input class="count-card-input" type="number" inputmode="decimal" value="'+val+'" onchange="updateCount(\''+cat.id+'\','+i+',this.value)">';
+      h+='<input class="count-card-input" type="number" inputmode="decimal" value="'+val+'" onchange="updateCount(\''+cat.id+'\','+origIdx2+',this.value)">';
       h+='</div>';
     }
   }
