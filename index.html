@@ -706,6 +706,40 @@ var arcDateFrom="";
 var arcDateTo="";
 var arcModeFilter="all";
 var arcSearchQ="";
+
+// ========== SKU (Internal Catalog Number) ==========
+var SKU_PREFIXES={"fruits":"FRU","vegetables":"VEG","meat":"MET","poultry":"PLT","fish":"FSH","melons":"MEL","dry_goods":"DRY","spices":"SPC","roots":"ROT"};
+var skuCounter=parseInt(localStorage.getItem("skuCounter")||"0");
+
+function generateSku(catId){
+  skuCounter++;
+  localStorage.setItem("skuCounter",skuCounter.toString());
+  var prefix=SKU_PREFIXES[catId]||catId.substring(0,3).toUpperCase();
+  return prefix+"-"+("0000"+skuCounter).slice(-4);
+}
+
+// Assign SKUs to all items that don't have one
+(function initSkus(){
+  var counter=0;
+  for(var c in ITEMS_DB){
+    for(var i=0;i<ITEMS_DB[c].length;i++){
+      counter++;
+      if(!ITEMS_DB[c][i].sku){
+        var prefix=SKU_PREFIXES[c]||c.substring(0,3).toUpperCase();
+        ITEMS_DB[c][i].sku=prefix+"-"+("0000"+counter).slice(-4);
+      }
+    }
+  }
+  if(counter>skuCounter){skuCounter=counter;localStorage.setItem("skuCounter",skuCounter.toString());}
+})();
+
+function findItemBySku(sku){
+  if(!sku) return null;
+  sku=sku.toUpperCase();
+  for(var c in ITEMS_DB) for(var i=0;i<ITEMS_DB[c].length;i++)
+    if((ITEMS_DB[c][i].sku||"").toUpperCase()===sku) return {item:ITEMS_DB[c][i],catId:c,idx:i};
+  return null;
+}
 // Transfer
 var transferFrom = null;
 var transferTo = null;
@@ -829,49 +863,137 @@ function getTotalAlertCount(){return getZeroCount()+getLowCount();}
 function findItemByBarcode(code) {
   for(var c in ITEMS_DB) for(var i=0;i<ITEMS_DB[c].length;i++) {
     if(ITEMS_DB[c][i].barcode===code) return {item:ITEMS_DB[c][i],catId:c,idx:i};
+    if((ITEMS_DB[c][i].sku||"").toUpperCase()===code.toUpperCase()) return {item:ITEMS_DB[c][i],catId:c,idx:i};
     if(ITEMS_DB[c][i].subs) for(var s=0;s<ITEMS_DB[c][i].subs.length;s++)
       if(ITEMS_DB[c][i].subs[s].barcode===code) return {item:ITEMS_DB[c][i],catId:c,idx:i,subIdx:s};
   }
   return null;
 }
 
+var cameraErrorDetail="";
+
 function startBarcodeScan() {
-  scanningBarcode=true;lastBarcode="";render();
+  scanningBarcode=true;lastBarcode="";cameraErrorDetail="";render();
+
+  // Note: HTTPS preferred but let browser decide - some Android browsers allow camera locally
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    cameraErrorDetail="navigator.mediaDevices not available. Try opening in Chrome browser.";
     lastBarcode="CAMERA_ERROR";render();return;
   }
+
+  // Check permission first
+  if(navigator.permissions&&navigator.permissions.query) {
+    navigator.permissions.query({name:"camera"}).then(function(result){
+      if(result.state==="denied") {
+        cameraErrorDetail="Camera permission denied. Go to browser Settings → Site Settings → Camera and allow this site.";
+        lastBarcode="CAMERA_ERROR";render();
+      } else {
+        requestCamera();
+      }
+    }).catch(function(){ requestCamera(); });
+  } else {
+    requestCamera();
+  }
+}
+
+function requestCamera() {
+  // Try back camera first
   navigator.mediaDevices.getUserMedia({video:{facingMode:"environment",width:{ideal:1280},height:{ideal:720}}})
   .then(function(stream){
     barcodeStream=stream;
-    setTimeout(function(){
-      var v=document.getElementById("barcode-video");
-      if(v){v.srcObject=stream;v.play();startBarcodeDetection(v);}
-    },100);
-  }).catch(function(e){console.error("Camera error:",e);lastBarcode="CAMERA_ERROR";render();});
+    attachBarcodeStream();
+  }).catch(function(e){
+    console.warn("Camera env error:",e.name,e.message);
+    // Try any camera
+    navigator.mediaDevices.getUserMedia({video:true}).then(function(stream){
+      barcodeStream=stream;
+      attachBarcodeStream();
+    }).catch(function(e2){
+      console.error("Camera all error:",e2.name,e2.message);
+      if(e2.name==="NotAllowedError"||e2.name==="PermissionDeniedError") {
+        cameraErrorDetail="Camera permission denied. Tap the lock icon \uD83D\uDD12 in the address bar → allow Camera.";
+      } else if(e2.name==="NotFoundError"||e2.name==="DevicesNotFoundError") {
+        cameraErrorDetail="No camera found on this device.";
+      } else if(e2.name==="NotReadableError"||e2.name==="TrackStartError") {
+        cameraErrorDetail="Camera is in use by another app. Close other apps using the camera and try again.";
+      } else if(e2.name==="OverconstrainedError") {
+        cameraErrorDetail="Camera constraints not supported. Trying basic mode...";
+      } else {
+        cameraErrorDetail=e2.name+": "+e2.message;
+      }
+      lastBarcode="CAMERA_ERROR";render();
+    });
+  });
 }
 
-function startBarcodeDetection(video) {
-  if(typeof BarcodeDetector!=="undefined") {
-    var detector=new BarcodeDetector({formats:["ean_13","ean_8","upc_a","upc_e","code_128","code_39","qr_code"]});
-    function detectFrame(){
-      if(!scanningBarcode)return;
-      detector.detect(video).then(function(barcodes){
-        if(barcodes.length>0){
-          var code=barcodes[0].rawValue;
-          handleBarcodeResult(code);return;
-        }
-        requestAnimationFrame(detectFrame);
-      }).catch(function(){requestAnimationFrame(detectFrame);});
-    }
-    detectFrame();
+function attachBarcodeStream() {
+  var v=document.getElementById("barcode-video");
+  if(v){
+    v.srcObject=barcodeStream;
+    v.onloadedmetadata=function(){ v.play().catch(function(){}); };
+    v.play().catch(function(){});
+    // Start detection after video is actually playing
+    v.onplaying=function(){
+      if(!v._detectionStarted){
+        v._detectionStarted=true;
+        startBarcodeDetection(v);
+      }
+    };
   } else {
-    // Fallback: manual entry
-    lastBarcode="NO_DETECTOR";render();
+    // Video element not in DOM yet, retry
+    if(scanningBarcode) setTimeout(attachBarcodeStream, 150);
+  }
+}
+
+var _barcodeDetectionActive=false;
+
+function startBarcodeDetection(video) {
+  if(_barcodeDetectionActive) return;
+  _barcodeDetectionActive=true;
+
+  if(typeof BarcodeDetector!=="undefined") {
+    try {
+      var detector=new BarcodeDetector({formats:["ean_13","ean_8","upc_a","upc_e","code_128","code_39","qr_code"]});
+      function detectFrame(){
+        if(!scanningBarcode){_barcodeDetectionActive=false;return;}
+        if(video.readyState<2){requestAnimationFrame(detectFrame);return;}
+        detector.detect(video).then(function(barcodes){
+          if(barcodes.length>0){
+            _barcodeDetectionActive=false;
+            handleBarcodeResult(barcodes[0].rawValue);return;
+          }
+          requestAnimationFrame(detectFrame);
+        }).catch(function(err){
+          console.warn("BarcodeDetector error:",err);
+          requestAnimationFrame(detectFrame);
+        });
+      }
+      detectFrame();
+    } catch(e) {
+      console.warn("BarcodeDetector init failed:",e);
+      _barcodeDetectionActive=false;
+      startCanvasFallback(video);
+    }
+  } else {
+    _barcodeDetectionActive=false;
+    startCanvasFallback(video);
+  }
+}
+
+// Canvas fallback - capture frames for manual/external scanning
+// Camera stays visible, user can use external scanner or manual entry
+function startCanvasFallback(video) {
+  // Don't call render() here - just update UI text in-place
+  var statusEl=document.getElementById("barcode-status");
+  if(statusEl){
+    statusEl.innerHTML='\u26A0\uFE0F BarcodeDetector not available on this device.<br>Use <b>External Scanner</b> or <b>Manual Entry</b> below.';
+    statusEl.style.color="#d29922";
   }
 }
 
 function handleBarcodeResult(code) {
   lastBarcode=code;
+  _barcodeDetectionActive=false;
   if(barcodeStream){barcodeStream.getTracks().forEach(function(t){t.stop();});barcodeStream=null;}
   var found=findItemByBarcode(code);
   if(found) {
@@ -887,8 +1009,53 @@ function handleBarcodeResult(code) {
 
 function stopBarcodeScan() {
   scanningBarcode=false;
+  _barcodeDetectionActive=false;
   if(barcodeStream){barcodeStream.getTracks().forEach(function(t){t.stop();});barcodeStream=null;}
   render();
+}
+
+function retryBarcodeScan() {
+  lastBarcode="";cameraErrorDetail="";
+  if(barcodeStream){barcodeStream.getTracks().forEach(function(t){t.stop();});barcodeStream=null;}
+  startBarcodeScan();
+}
+
+function scanBarcodeFromPhoto(input) {
+  if(!input.files||!input.files[0]) return;
+  var file=input.files[0];
+  var img=new Image();
+  img.onload=function(){
+    // Try BarcodeDetector on the image
+    if(typeof BarcodeDetector!=="undefined") {
+      try {
+        var detector=new BarcodeDetector({formats:["ean_13","ean_8","upc_a","upc_e","code_128","code_39","qr_code"]});
+        detector.detect(img).then(function(barcodes){
+          if(barcodes.length>0){
+            handleBarcodeResult(barcodes[0].rawValue);
+          } else {
+            cameraErrorDetail="No barcode detected in photo. Try again with better focus and lighting.";
+            lastBarcode="CAMERA_ERROR";render();
+          }
+        }).catch(function(e){
+          cameraErrorDetail="Barcode detection failed: "+e.message+". Try manual entry.";
+          lastBarcode="CAMERA_ERROR";render();
+        });
+      } catch(e) {
+        cameraErrorDetail="BarcodeDetector not supported. Use manual entry below.";
+        lastBarcode="CAMERA_ERROR";render();
+      }
+    } else {
+      // No BarcodeDetector - try canvas approach for basic reading
+      cameraErrorDetail="BarcodeDetector not available on this device. Use manual entry or external scanner.";
+      lastBarcode="CAMERA_ERROR";render();
+    }
+    URL.revokeObjectURL(img.src);
+  };
+  img.onerror=function(){
+    cameraErrorDetail="Could not load photo. Try again.";
+    lastBarcode="CAMERA_ERROR";render();
+  };
+  img.src=URL.createObjectURL(file);
 }
 
 function assignBarcode(catId,idx,code) {
@@ -1009,6 +1176,8 @@ var claudeConnected = !!claudeApiKey;
 
 // ========== HELPERS ==========
 function itemImg(item, sz) {
+  if(item.customPhoto)
+    return '<img src="'+item.customPhoto+'" style="width:'+sz+'px;height:'+sz+'px;border-radius:'+(sz>32?12:8)+'px;object-fit:cover" alt="'+item.name+'">';
   var imgKey = item.img;
   if (imgKey && PRODUCT_IMAGES[imgKey])
     return '<img src="'+PRODUCT_IMAGES[imgKey]+'" style="width:'+sz+'px;height:'+sz+'px;border-radius:'+(sz>32?12:8)+'px;object-fit:cover" alt="'+item.name+'">';
@@ -1086,7 +1255,7 @@ function confirmQty() {
   else if(mode==="in"){selItem.stock+=q;selItem.lastIn=nowShort();}
   var _txEntry={item:selItem.name,mode:mode,qty:q,unit:qtyMode==="kg"?"kg":selItem.unit,storage:storage?storage.name:"",time:now(),reason:mode==="out"?stockOutReason:""};
   txLog.push(_txEntry);
-  archivePush({item:selItem.name,itemId:selItem.id||"",cat:selCat?selCat.name:"",mode:mode,qty:q,unit:qtyMode==="kg"?"kg":selItem.unit,price:selItem.price||0,total:q*(selItem.price||0),storage:storage?storage.name:"",reason:mode==="out"?stockOutReason:"",stockAfter:selItem.stock});
+  archivePush({item:selItem.name,itemId:selItem.id||"",sku:selItem.sku||"",cat:selCat?selCat.name:"",mode:mode,qty:q,unit:qtyMode==="kg"?"kg":selItem.unit,price:selItem.price||0,total:q*(selItem.price||0),storage:storage?storage.name:"",reason:mode==="out"?stockOutReason:"",stockAfter:selItem.stock});
   // Track last used items
   if(selItem&&selCat){var luEntry={catId:selCat.id,itemId:selItem.id,name:selItem.name,emoji:selItem.emoji||selCat.emoji};
     lastUsedItems=lastUsedItems.filter(function(x){return x.itemId!==selItem.id;});
@@ -1132,6 +1301,7 @@ function openEdit(catId,idx){editTarget={catId:catId,idx:idx,item:ITEMS_DB[catId
 function saveEditItem(){
   if(!editTarget) return;
   var it=editTarget.item;
+  it.sku=(document.getElementById("edit-sku")||{}).value||it.sku||"";
   it.name=(document.getElementById("edit-name")||{}).value||it.name;
   it.nameEs=(document.getElementById("edit-name-es")||{}).value||"";
   it.unit=(document.getElementById("edit-unit")||{}).value||it.unit;
@@ -1184,6 +1354,366 @@ function saveNewItem(){
   showModal="";render();
 }
 function confirmDelete(){if(deleteTarget)ITEMS_DB[deleteTarget.catId].splice(deleteTarget.idx,1);showModal="";deleteTarget=null;render();}
+
+// ========== ADD PRODUCT (ADMIN) ==========
+var addProductMode="manual"; // "manual" or "photo"
+var addProductPhoto=""; // base64 photo
+var addProductBarcode="";
+var addProductScanning=false;
+
+function openAddProduct(){
+  addProductMode="manual";addProductPhoto="";addProductBarcode="";addProductScanning=false;addProductAiStatus="";addProductAiResult=null;
+  showModal="addProduct";render();
+}
+function openAddProductPhoto(){
+  addProductMode="photo";addProductPhoto="";addProductBarcode="";addProductScanning=false;addProductAiStatus="";addProductAiResult=null;
+  showModal="addProduct";render();
+}
+
+function renderAddProductModal(){
+  var h='<div class="modal-overlay" onclick="closeAddProduct()"><div class="modal-card" style="max-width:480px;max-height:90vh;overflow-y:auto" onclick="event.stopPropagation()">';
+  h+='<div class="modal-title">\u2795 Add New Product</div>';
+
+  // Mode tabs
+  h+='<div style="display:flex;gap:6px;margin-bottom:16px">';
+  h+='<button onclick="addProductMode=\'manual\';render()" style="flex:1;padding:10px;border-radius:12px;font-size:13px;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;'
+    +(addProductMode==="manual"?"background:#238636;color:#fff;box-shadow:0 2px 8px rgba(35,134,54,0.3)":"background:rgba(255,255,255,0.05);color:#8b949e")
+    +'">\u270F\uFE0F Manual</button>';
+  h+='<button onclick="addProductMode=\'photo\';render()" style="flex:1;padding:10px;border-radius:12px;font-size:13px;font-weight:700;border:none;cursor:pointer;transition:all 0.2s;'
+    +(addProductMode==="photo"?"background:#8b5cf6;color:#fff;box-shadow:0 2px 8px rgba(139,92,246,0.3)":"background:rgba(255,255,255,0.05);color:#8b949e")
+    +'">\uD83D\uDCF7 Photo & Scan</button>';
+  h+='</div>';
+
+  if(addProductMode==="photo"){
+    // Photo section
+    h+='<div style="text-align:center;margin-bottom:14px">';
+    if(addProductPhoto){
+      h+='<div style="position:relative;display:inline-block">';
+      h+='<img src="'+addProductPhoto+'" style="width:120px;height:120px;object-fit:cover;border-radius:16px;border:2px solid rgba(139,92,246,0.4)">';
+      h+='<button onclick="addProductPhoto=\'\';render()" style="position:absolute;top:-6px;right:-6px;width:24px;height:24px;border-radius:50%;background:#f85149;color:#fff;border:none;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center">\u2715</button>';
+      h+='</div>';
+    } else {
+      h+='<div style="width:120px;height:120px;margin:0 auto;border-radius:16px;border:2px dashed rgba(139,92,246,0.3);background:rgba(139,92,246,0.04);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px">';
+      h+='<div style="font-size:32px">\uD83D\uDCF7</div>';
+      h+='<div style="font-size:10px;color:#8b949e">No photo yet</div>';
+      h+='</div>';
+    }
+    h+='<div style="margin-top:10px;display:flex;gap:6px;justify-content:center">';
+    h+='<label style="padding:8px 14px;border-radius:10px;background:rgba(139,92,246,0.15);color:#a78bfa;font-size:12px;font-weight:600;cursor:pointer">';
+    h+='\uD83D\uDCF8 Take Product Photo';
+    h+='<input type="file" accept="image/*" capture="environment" style="display:none" onchange="handleAddProductPhoto(this)">';
+    h+='</label>';
+    h+='<label style="padding:8px 14px;border-radius:10px;background:rgba(88,166,255,0.1);color:#58a6ff;font-size:12px;font-weight:600;cursor:pointer">';
+    h+='\uD83D\uDDBC Gallery';
+    h+='<input type="file" accept="image/*" style="display:none" onchange="handleAddProductPhoto(this)">';
+    h+='</label>';
+    h+='</div></div>';
+
+    // AI identification status
+    if(addProductAiStatus==="loading"){
+      h+='<div style="padding:10px;border-radius:12px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);margin-bottom:14px;display:flex;align-items:center;gap:10px">';
+      h+='<span class="ai-pulse" style="font-size:18px">\uD83E\uDDE0</span>';
+      h+='<div><div style="font-size:12px;color:#a78bfa;font-weight:600">AI identifying product...</div>';
+      h+='<div style="font-size:10px;color:#8b949e">Analyzing photo with Claude Vision</div></div></div>';
+    } else if(addProductAiStatus==="done" && addProductAiResult){
+      h+='<div style="padding:10px;border-radius:12px;background:rgba(63,185,80,0.08);border:1px solid rgba(63,185,80,0.2);margin-bottom:14px">';
+      h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
+      h+='<span style="font-size:16px">\u2705</span>';
+      h+='<div style="font-size:12px;color:#3fb950;font-weight:700">Product Identified!</div></div>';
+      h+='<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:11px">';
+      if(addProductAiResult.name_en) h+='<span style="padding:3px 8px;border-radius:6px;background:rgba(255,255,255,0.06);color:#e6edf3">\uD83C\uDDFA\uD83C\uDDF8 '+addProductAiResult.name_en+'</span>';
+      if(addProductAiResult.name_es) h+='<span style="padding:3px 8px;border-radius:6px;background:rgba(255,255,255,0.06);color:#e6edf3">\uD83C\uDDEA\uD83C\uDDF8 '+addProductAiResult.name_es+'</span>';
+      if(addProductAiResult.category) h+='<span style="padding:3px 8px;border-radius:6px;background:rgba(88,166,255,0.1);color:#58a6ff">\uD83D\uDCC1 '+addProductAiResult.category+'</span>';
+      if(addProductAiResult.unit) h+='<span style="padding:3px 8px;border-radius:6px;background:rgba(210,153,34,0.1);color:#d29922">\u2696 '+addProductAiResult.unit+'</span>';
+      h+='</div>';
+      h+='<div style="font-size:10px;color:#484f58;margin-top:6px">\uD83D\uDCA1 Fields auto-filled — edit below if needed</div>';
+      h+='</div>';
+    } else if(addProductAiStatus==="nokey"){
+      h+='<div style="padding:8px;border-radius:10px;background:rgba(210,153,34,0.08);border:1px solid rgba(210,153,34,0.15);margin-bottom:14px;font-size:11px;color:#d29922;text-align:center">';
+      h+='\u26A0\uFE0F Set Claude API key in Admin \u2192 API to enable auto-identification</div>';
+    } else if(addProductAiStatus==="error"){
+      h+='<div style="padding:8px;border-radius:10px;background:rgba(248,81,73,0.08);border:1px solid rgba(248,81,73,0.15);margin-bottom:14px;font-size:11px;color:#f85149;text-align:center">';
+      h+='\u274C Could not identify product. Fill in details manually.</div>';
+    }
+
+    // Barcode section
+    h+='<div class="edit-section"><div class="edit-section-title">\uD83D\uDCF2 Barcode</div>';
+    h+='<div style="display:flex;gap:6px;align-items:center">';
+    h+='<input class="form-input" id="addp-barcode" placeholder="Barcode number" value="'+addProductBarcode+'" style="flex:1;font-family:monospace;font-weight:700" oninput="addProductBarcode=this.value">';
+    h+='<label style="padding:9px 12px;border-radius:10px;background:rgba(210,153,34,0.15);color:#d29922;font-weight:700;font-size:18px;cursor:pointer;line-height:1" title="Scan barcode photo">';
+    h+='\uD83D\uDCF8';
+    h+='<input type="file" accept="image/*" capture="environment" style="display:none" onchange="scanNewProductBarcode(this)">';
+    h+='</label>';
+    h+='</div>';
+    if(addProductBarcode){
+      var found=findItemByBarcode(addProductBarcode);
+      if(found){
+        h+='<div style="padding:6px 10px;border-radius:8px;background:rgba(210,153,34,0.1);color:#d29922;font-size:11px;margin-top:6px">\u26A0\uFE0F This barcode is already assigned to: <b>'+found.item.name+'</b></div>';
+      } else {
+        h+='<div style="padding:6px 10px;border-radius:8px;background:rgba(63,185,80,0.1);color:#3fb950;font-size:11px;margin-top:6px">\u2705 Barcode available</div>';
+      }
+    }
+    h+='</div>';
+  }
+
+  // Form fields (always shown)
+  h+='<div class="edit-section"><div class="edit-section-title">\uD83C\uDFF7\uFE0F Identification</div>';
+  h+='<div class="form-group"><label class="form-label">SKU (auto-generated if empty)</label>';
+  h+='<input class="form-input" id="addp-sku" placeholder="Leave empty for auto" style="font-family:monospace;font-weight:700;color:#58a6ff;letter-spacing:0.05em"></div>';
+  var aiNameEn=(addProductAiResult&&addProductAiResult.name_en)||"";
+  var aiNameEs=(addProductAiResult&&addProductAiResult.name_es)||"";
+  h+='<div class="form-group"><label class="form-label">Name (English) *</label><input class="form-input" id="addp-name" placeholder="e.g. Tomatoes" value="'+aiNameEn.replace(/"/g,"&quot;")+'"></div>';
+  h+='<div class="form-group"><label class="form-label">Name (Spanish)</label><input class="form-input" id="addp-name-es" placeholder="e.g. Tomates" value="'+aiNameEs.replace(/"/g,"&quot;")+'"></div>';
+  h+='</div>';
+
+  h+='<div class="edit-section"><div class="edit-section-title">\uD83D\uDCC1 Category *</div>';
+  h+='<div style="display:flex;flex-wrap:wrap;gap:6px">';
+  var aiCat=(addProductAiResult&&addProductAiResult.category)||"";
+  for(var ci=0;ci<CATEGORIES.length;ci++){var c=CATEGORIES[ci];
+    var catChecked=aiCat?c.id===aiCat:(ci===0);
+    h+='<label style="display:flex;align-items:center;gap:5px;padding:8px 12px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);font-size:12px;cursor:pointer">';
+    h+='<input type="radio" name="addp-cat" value="'+c.id+'"'+(catChecked?" checked":"")+' style="accent-color:#58a6ff"> '+c.emoji+' '+c.name+'</label>';
+  }
+  h+='</div></div>';
+
+  h+='<div class="edit-section"><div class="edit-section-title">\uD83D\uDCB0 Details</div>';
+  h+='<div class="form-row">';
+  var aiUnit=(addProductAiResult&&addProductAiResult.unit)||"kg";
+  h+='<div class="form-group"><label class="form-label">Unit</label>';
+  h+='<select class="form-select" id="addp-unit"><option value="kg"'+(aiUnit==="kg"?" selected":"")+'>kg</option><option value="pcs"'+(aiUnit==="pcs"?" selected":"")+'>pcs</option><option value="L"'+(aiUnit==="L"?" selected":"")+'>L</option><option value="g"'+(aiUnit==="g"?" selected":"")+'>g</option></select></div>';
+  h+='<div class="form-group"><label class="form-label">Initial Stock</label><input class="form-input" id="addp-stock" type="number" placeholder="0"></div>';
+  h+='<div class="form-group"><label class="form-label">Price $</label><input class="form-input" id="addp-price" type="number" step="0.01" placeholder="0"></div>';
+  h+='</div></div>';
+
+  // Alert thresholds
+  h+='<div class="edit-section"><div class="edit-section-title">\uD83D\uDD14 Alert Thresholds</div>';
+  h+='<div style="display:flex;gap:8px">';
+  h+='<div style="flex:1;padding:8px;border-radius:10px;border:1px solid rgba(248,81,73,0.2);background:rgba(248,81,73,0.04)">';
+  h+='<div style="font-size:10px;color:#f85149;font-weight:600;margin-bottom:4px">\u26D4 Critical \u2264</div>';
+  h+='<input class="form-input" id="addp-alertCrit" type="number" value="5" style="text-align:center;font-weight:700;border-color:rgba(248,81,73,0.2)"></div>';
+  h+='<div style="flex:1;padding:8px;border-radius:10px;border:1px solid rgba(210,153,34,0.2);background:rgba(210,153,34,0.04)">';
+  h+='<div style="font-size:10px;color:#d29922;font-weight:600;margin-bottom:4px">\u26A0\uFE0F Low \u2264</div>';
+  h+='<input class="form-input" id="addp-alertLow" type="number" value="15" style="text-align:center;font-weight:700;border-color:rgba(210,153,34,0.2)"></div>';
+  h+='</div></div>';
+
+  // Storage locations
+  h+='<div class="edit-section"><div class="edit-section-title">\uD83D\uDCCD Storage Locations</div>';
+  h+='<div style="display:flex;flex-wrap:wrap;gap:6px">';
+  for(var si=0;si<STORAGES.length;si++){var s=STORAGES[si];
+    h+='<label style="display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);font-size:12px;cursor:pointer">';
+    h+='<input type="checkbox" id="addp-loc-'+s.id+'" checked style="accent-color:'+s.color+'"> '+s.icon+' '+s.name+'</label>';
+  }
+  h+='</div></div>';
+
+  // Barcode (manual mode)
+  if(addProductMode==="manual"){
+    h+='<div class="edit-section"><div class="edit-section-title">\uD83D\uDCF2 Barcode (optional)</div>';
+    h+='<div style="display:flex;gap:6px;align-items:center">';
+    h+='<input class="form-input" id="addp-barcode" placeholder="Enter or scan barcode" value="'+addProductBarcode+'" style="flex:1;font-family:monospace;font-weight:700" oninput="addProductBarcode=this.value">';
+    h+='<label style="padding:9px 12px;border-radius:10px;background:rgba(210,153,34,0.15);color:#d29922;font-weight:700;font-size:18px;cursor:pointer;line-height:1">';
+    h+='\uD83D\uDCF8';
+    h+='<input type="file" accept="image/*" capture="environment" style="display:none" onchange="scanNewProductBarcode(this)">';
+    h+='</label>';
+    h+='</div></div>';
+  }
+
+  // Buttons
+  h+='<div class="btn-row" style="margin-top:20px"><button class="btn-cancel" onclick="closeAddProduct()">Cancel</button>';
+  h+='<button class="btn-save" onclick="saveAdminNewItem()">\u2705 Add Product</button></div>';
+  h+='</div></div>';
+  return h;
+}
+
+function closeAddProduct(){
+  showModal="";addProductPhoto="";addProductBarcode="";addProductScanning=false;addProductAiStatus="";addProductAiResult=null;render();
+}
+
+var addProductAiStatus=""; // "loading","done","error",""
+
+function handleAddProductPhoto(input){
+  if(!input.files||!input.files[0]) return;
+  var file=input.files[0];
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var img=new Image();
+    img.onload=function(){
+      // Create thumbnail (200x200) for display/storage
+      var canvas=document.createElement("canvas");
+      canvas.width=200;canvas.height=200;
+      var ctx=canvas.getContext("2d");
+      var scale=Math.max(200/img.width,200/img.height);
+      var w=img.width*scale,ht=img.height*scale;
+      ctx.drawImage(img,(200-w)/2,(200-ht)/2,w,ht);
+      addProductPhoto=canvas.toDataURL("image/jpeg",0.85);
+      render();
+
+      // Create higher-res version (512px) for AI analysis
+      var aiCanvas=document.createElement("canvas");
+      var aiMax=512;
+      var aiScale=Math.min(aiMax/img.width,aiMax/img.height,1);
+      aiCanvas.width=Math.round(img.width*aiScale);
+      aiCanvas.height=Math.round(img.height*aiScale);
+      var aiCtx=aiCanvas.getContext("2d");
+      aiCtx.drawImage(img,0,0,aiCanvas.width,aiCanvas.height);
+      var aiBase64=aiCanvas.toDataURL("image/jpeg",0.9);
+
+      // Auto-identify with Claude Vision
+      identifyProductFromPhoto(aiBase64);
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function identifyProductFromPhoto(base64DataUrl){
+  if(!claudeApiKey){
+    addProductAiStatus="nokey";render();
+    return;
+  }
+  addProductAiStatus="loading";render();
+
+  // Strip data URL prefix
+  var b64=base64DataUrl.replace(/^data:image\/[a-z]+;base64,/,"");
+
+  var payload={
+    model:"claude-sonnet-4-20250514",
+    max_tokens:512,
+    messages:[{role:"user",content:[
+      {type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},
+      {type:"text",text:"Identify this food/kitchen product. Return ONLY a JSON object with these fields:\n- name_en: product name in English\n- name_es: product name in Spanish\n- category: one of [fruits, vegetables, meat, poultry, fish, melons, dry_goods, spices, roots]\n- unit: suggested unit (kg, pcs, L, or g)\n- description: very brief 2-3 word description\nIf you cannot identify, set name_en to empty string.\nReturn ONLY valid JSON, no markdown."}
+    ]}],
+    system:"You are a food product identifier for a kitchen inventory system. Return only a raw JSON object, no backticks, no explanation."
+  };
+
+  fetch("https://api.anthropic.com/v1/messages",{
+    method:"POST",
+    headers:{"Content-Type":"application/json","x-api-key":claudeApiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+    body:JSON.stringify(payload)
+  }).then(function(r){return r.json();})
+  .then(function(data){
+    var text="";for(var i=0;i<data.content.length;i++)if(data.content[i].type==="text")text+=data.content[i].text;
+    // Parse JSON
+    var jsonMatch=text.match(/\{[\s\S]*\}/);
+    if(jsonMatch){
+      var result=JSON.parse(jsonMatch[0]);
+      addProductAiStatus="done";
+      // Fill in fields
+      if(result.name_en){
+        var el=document.getElementById("addp-name");
+        if(el&&!el.value) el.value=result.name_en;
+      }
+      if(result.name_es){
+        var el2=document.getElementById("addp-name-es");
+        if(el2&&!el2.value) el2.value=result.name_es;
+      }
+      if(result.unit){
+        var el3=document.getElementById("addp-unit");
+        if(el3) el3.value=result.unit;
+      }
+      if(result.category){
+        var radios=document.querySelectorAll("input[name=addp-cat]");
+        for(var r=0;r<radios.length;r++){
+          if(radios[r].value===result.category){radios[r].checked=true;break;}
+        }
+      }
+      // Store result for display
+      addProductAiResult=result;
+      render();
+      // Re-fill after render rebuilds DOM
+      setTimeout(function(){
+        if(result.name_en){var e1=document.getElementById("addp-name");if(e1&&!e1.value)e1.value=result.name_en;}
+        if(result.name_es){var e2=document.getElementById("addp-name-es");if(e2&&!e2.value)e2.value=result.name_es;}
+        if(result.unit){var e3=document.getElementById("addp-unit");if(e3)e3.value=result.unit;}
+        if(result.category){var rr=document.querySelectorAll("input[name=addp-cat]");for(var i=0;i<rr.length;i++){if(rr[i].value===result.category){rr[i].checked=true;break;}}}
+      },100);
+    } else {
+      addProductAiStatus="error";addProductAiResult=null;render();
+    }
+  }).catch(function(e){
+    console.error("AI identify error:",e);
+    addProductAiStatus="error";addProductAiResult=null;render();
+  });
+}
+
+var addProductAiResult=null;
+
+function scanNewProductBarcode(input){
+  if(!input.files||!input.files[0]) return;
+  var file=input.files[0];
+  var img=new Image();
+  img.onload=function(){
+    if(typeof BarcodeDetector!=="undefined"){
+      try{
+        var detector=new BarcodeDetector({formats:["ean_13","ean_8","upc_a","upc_e","code_128","code_39","qr_code"]});
+        detector.detect(img).then(function(barcodes){
+          if(barcodes.length>0){
+            addProductBarcode=barcodes[0].rawValue;
+            var el=document.getElementById("addp-barcode");
+            if(el) el.value=addProductBarcode;
+            render();
+          } else {
+            alert("No barcode detected. Try with better focus/lighting or enter manually.");
+          }
+        }).catch(function(){ alert("Barcode scan failed. Enter manually."); });
+      }catch(e){ alert("BarcodeDetector not available. Enter barcode manually."); }
+    } else {
+      alert("BarcodeDetector not supported on this device. Enter barcode manually.");
+    }
+    URL.revokeObjectURL(img.src);
+  };
+  img.src=URL.createObjectURL(file);
+}
+
+function saveAdminNewItem(){
+  var name=(document.getElementById("addp-name")||{}).value||"";
+  if(!name.trim()){ alert("Product name is required"); return; }
+  var nameEs=(document.getElementById("addp-name-es")||{}).value||"";
+  var unit=(document.getElementById("addp-unit")||{}).value||"kg";
+  var stock=parseFloat((document.getElementById("addp-stock")||{}).value)||0;
+  var price=parseFloat((document.getElementById("addp-price")||{}).value)||0;
+  var aLow=parseFloat((document.getElementById("addp-alertLow")||{}).value)||15;
+  var aCrit=parseFloat((document.getElementById("addp-alertCrit")||{}).value)||5;
+  if(aCrit>=aLow) aLow=aCrit+1;
+  var barcode=addProductBarcode||(document.getElementById("addp-barcode")||{}).value||"";
+  // Get category
+  var catId=CATEGORIES[0].id;
+  var radios=document.querySelectorAll("input[name=addp-cat]");
+  for(var r=0;r<radios.length;r++){if(radios[r].checked){catId=radios[r].value;break;}}
+  // Get locations
+  var locs=[];for(var si=0;si<STORAGES.length;si++){var cb=document.getElementById("addp-loc-"+STORAGES[si].id);if(cb&&cb.checked)locs.push(STORAGES[si].id);}
+  // Get emoji for category
+  var emoji="";for(var ci=0;ci<CATEGORIES.length;ci++){if(CATEGORIES[ci].id===catId){emoji=CATEGORIES[ci].emoji;break;}}
+  // Create item
+  var sku=(document.getElementById("addp-sku")||{}).value||"";
+  if(!sku) sku=generateSku(catId);
+  var newItem={
+    id:"new_"+Date.now(),
+    sku:sku,
+    name:name.trim(),
+    nameEs:nameEs.trim(),
+    emoji:emoji,
+    unit:unit,
+    stock:stock,
+    price:price,
+    barcode:barcode,
+    alertLow:aLow,
+    alertCrit:aCrit,
+    loc:locs,
+    subs:[]
+  };
+  if(addProductPhoto) newItem.customPhoto=addProductPhoto;
+  // Add to DB
+  if(!ITEMS_DB[catId]) ITEMS_DB[catId]=[];
+  ITEMS_DB[catId].push(newItem);
+  // Archive the initial stock if any
+  if(stock>0){
+    archivePush({item:newItem.name,itemId:newItem.id,cat:catId,mode:"in",qty:stock,unit:unit,price:price,total:stock*price,storage:"",reason:"initial stock",stockAfter:stock});
+    newItem.lastIn=nowShort();
+  }
+  addProductPhoto="";addProductBarcode="";addProductScanning=false;
+  showModal="success";render();
+  setTimeout(function(){showModal="";render();},1200);
+}
 function toggleSub(id){expandedSubs[id]=!expandedSubs[id];render();}
 function logout(){isAdmin=false;screen="main";mode="";render();}
 
@@ -1535,7 +2065,16 @@ function confirmScanResults(){
 function openInvoice(){startScan();}
 
 // ========== RENDER ENGINE ==========
-function render() { document.getElementById("app").innerHTML = renderApp(); }
+function render() {
+  document.getElementById("app").innerHTML = renderApp();
+  // Re-attach barcode camera stream after DOM rebuild
+  if(scanningBarcode && barcodeStream) {
+    setTimeout(function(){
+      var v=document.getElementById("barcode-video");
+      if(v && !v.srcObject){ v.srcObject=barcodeStream; v.play().catch(function(){}); }
+    },50);
+  }
+}
 function renderApp() {
   if(showModal==="pin") return renderPin();
   var h = renderCurrent();
@@ -1544,6 +2083,7 @@ function renderApp() {
   if(showModal==="add") h+=renderAddModal();
   if(showModal==="delete") h+=renderDeleteModal();
   if(showModal==="edit") h+=renderEditModal();
+  if(showModal==="addProduct") h+=renderAddProductModal();
   if(showModal==="invoice") h+=renderInvoiceModal();
   if(scanningBarcode) h+=renderBarcodeOverlay();
   // External scanner toast
@@ -1778,6 +2318,7 @@ function renderItems() {
     // Name
     h+='<div class="tile-name">'+it.name+'</div>';
     if(it.nameEs) h+='<div class="tile-name-es">'+it.nameEs+'</div>';
+    if(it.sku) h+='<div style="font-size:7px;color:#58a6ff;text-align:center;font-family:monospace;letter-spacing:0.03em;opacity:0.7">'+it.sku+'</div>';
     // Timestamps
     if(it.lastIn||it.lastOut){
       h+='<div class="tile-ts">';
@@ -2012,19 +2553,26 @@ function renderDashboard() {
 
 function renderProductList() {
   var h='';
+  // Add Product button
+  h+='<div style="display:flex;gap:8px;margin-bottom:12px">';
+  h+='<button onclick="openAddProduct()" style="flex:1;padding:12px;border-radius:14px;background:linear-gradient(135deg,#238636,#2ea043);color:#fff;font-size:14px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 2px 12px rgba(46,160,67,0.3);transition:all 0.2s">';
+  h+='\u2795 Add Product Manually</button>';
+  h+='<button onclick="openAddProductPhoto()" style="flex:1;padding:12px;border-radius:14px;background:linear-gradient(135deg,#8b5cf6,#a78bfa);color:#fff;font-size:14px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 2px 12px rgba(139,92,246,0.3);transition:all 0.2s">';
+  h+='\uD83D\uDCF7 Add by Photo</button>';
+  h+='</div>';
   // Search
   h+='<div class="search-bar" style="padding:0;margin-bottom:12px"><div class="search-wrap"><span class="search-icon">\uD83D\uDD0D</span>';
   h+='<input class="search-input" style="padding-left:36px" placeholder="Search all products EN / ES..." value="'+searchQuery+'" oninput="setSearch(this.value)"></div></div>';
   // Sort buttons
   h+='<div class="sort-bar" style="padding:0;margin:0 0 12px">';
-  var sortOpts=[["name","\uD83D\uDD24 Name"],["stock","\uD83D\uDCE6 Stock"],["price","\uD83D\uDCB2 Price"],["cat","\uD83D\uDCC1 Category"]];
+  var sortOpts=[["name","\uD83D\uDD24 Name"],["sku","\uD83C\uDFF7 SKU"],["stock","\uD83D\uDCE6 Stock"],["price","\uD83D\uDCB2 Price"],["cat","\uD83D\uDCC1 Category"]];
   for(var i=0;i<sortOpts.length;i++){var active=sortBy===sortOpts[i][0];
     h+='<button class="sort-pill'+(active?' active':'')+'" onclick="setSort(\''+sortOpts[i][0]+'\')">'+sortOpts[i][1]+(active?(sortDir==="asc"?" \u2191":" \u2193"):"")+'</button>';
   }
   h+='</div>';
   // Item count
   var all=allItemsFlat();
-  if(searchQuery){var q=searchQuery.toLowerCase();all=all.filter(function(x){return x.item.name.toLowerCase().indexOf(q)!==-1||(x.item.nameEs||"").toLowerCase().indexOf(q)!==-1;});}
+  if(searchQuery){var q=searchQuery.toLowerCase();all=all.filter(function(x){return x.item.name.toLowerCase().indexOf(q)!==-1||(x.item.nameEs||"").toLowerCase().indexOf(q)!==-1||(x.item.sku||"").toLowerCase().indexOf(q)!==-1;});}
   h+='<div style="font-size:11px;color:#484f58;margin-bottom:8px;padding-left:2px">'+all.length+' items</div>';
   // Sort
   all.sort(function(a,b){var va,vb;
@@ -2032,11 +2580,12 @@ function renderProductList() {
     else if(sortBy==="stock"){va=a.item.stock;vb=b.item.stock;}
     else if(sortBy==="price"){va=a.item.price;vb=b.item.price;}
     else if(sortBy==="cat"){va=a.catId;vb=b.catId;}
+    else if(sortBy==="sku"){va=(a.item.sku||"");vb=(b.item.sku||"");}
     else{va=a.item.name.toLowerCase();vb=b.item.name.toLowerCase();}
     if(va<vb)return sortDir==="asc"?-1:1;if(va>vb)return sortDir==="asc"?1:-1;return 0;
   });
   // Table
-  h+='<div style="overflow-x:auto"><table class="prod-table"><thead><tr><th></th><th>Name</th><th>Cat</th><th>Loc</th><th>Stock</th><th>\uD83D\uDD14</th><th>$</th><th></th></tr></thead><tbody>';
+  h+='<div style="overflow-x:auto"><table class="prod-table"><thead><tr><th></th><th>SKU</th><th>Name</th><th>Cat</th><th>Loc</th><th>Stock</th><th>\uD83D\uDD14</th><th>$</th><th></th></tr></thead><tbody>';
   for(var i=0;i<all.length;i++){var it=all[i].item,cat=all[i].cat;
     var st=it.stock<=(it.alertCrit||5)?"critical":it.stock<=(it.alertLow||15)?"low":"ok";
     // Category name
@@ -2045,7 +2594,7 @@ function renderProductList() {
     var locHtml="";
     if(it.loc&&it.loc.length>0){for(var li=0;li<it.loc.length;li++){for(var si=0;si<STORAGES.length;si++){if(STORAGES[si].id===it.loc[li]){locHtml+='<span title="'+STORAGES[si].name+'" style="font-size:12px">'+STORAGES[si].icon+'</span> ';break;}}}}
     else locHtml='<span style="color:#484f58;font-size:10px">All</span>';
-    h+='<tr><td>'+itemImg(it,28)+'</td><td style="font-weight:600">'+it.name+'<div style="font-size:10px;color:#8b949e;font-style:italic">'+(it.nameEs||"")+'</div></td>';
+    h+='<tr><td>'+itemImg(it,28)+'</td><td class="mono" style="font-size:10px;color:#58a6ff;white-space:nowrap">'+(it.sku||"-")+'</td><td style="font-weight:600">'+it.name+'<div style="font-size:10px;color:#8b949e;font-style:italic">'+(it.nameEs||"")+'</div></td>';
     h+='<td style="font-size:14px" title="'+all[i].catId+'">'+catName+'</td>';
     h+='<td style="font-size:11px">'+locHtml+'</td>';
     h+='<td class="mono" style="font-weight:700"><span class="status-dot status-'+st+'"></span>'+it.stock+'</td>';
@@ -2053,7 +2602,7 @@ function renderProductList() {
     h+='<td class="mono">$'+it.price.toFixed(2)+'</td>';
     h+='<td><button style="padding:6px 10px;border-radius:8px;border:1px solid rgba(88,166,255,0.3);background:rgba(88,166,255,0.08);color:#58a6ff;font-size:11px;font-weight:600;cursor:pointer;transition:all 0.15s" onclick="openEdit(\''+all[i].catId+'\','+all[i].idx+')">\u270F Edit</button></td></tr>';
     if(it.subs)for(var s=0;s<it.subs.length;s++){var sub=it.subs[s];
-      h+='<tr style="opacity:0.6"><td>'+(sub.img&&PRODUCT_IMAGES[sub.img]?itemImg(sub,22):'')+'</td><td style="padding-left:24px">\u2514 '+sub.name+'</td>';
+      h+='<tr style="opacity:0.6"><td>'+(sub.img&&PRODUCT_IMAGES[sub.img]?itemImg(sub,22):'')+'</td><td></td><td style="padding-left:24px">\u2514 '+sub.name+'</td>';
       h+='<td></td><td></td><td class="mono">'+sub.stock+'</td><td></td><td class="mono">$'+(sub.price||it.price).toFixed(2)+'</td><td></td></tr>';
     }
   }
@@ -2361,11 +2910,14 @@ function renderEditModal() {
   // Show custom photo if exists
   
   if(it.nameEs) h+='<div style="font-size:13px;color:#8b949e;font-style:italic">'+it.nameEs+'</div>';
-  h+='<div style="font-size:11px;color:#484f58;margin-top:4px">ID: '+it.id+'</div></div></div>';
+  if(it.sku) h+='<div style="font-size:12px;color:#58a6ff;font-family:monospace;font-weight:700;margin-top:2px">'+it.sku+'</div>';
+  h+='<div style="font-size:10px;color:#484f58;margin-top:2px">ID: '+it.id+'</div></div></div>';
   // Camera button for product photo
   h+='<div style="text-align:center;margin-bottom:12px"><button onclick="captureProductPhoto()" style="padding:8px 16px;border-radius:10px;border:1px solid rgba(88,166,255,0.3);background:rgba(88,166,255,0.06);color:#58a6ff;font-size:12px;font-weight:600;cursor:pointer">\uD83D\uDCF8 Take Photo</button></div>';
-  // Section: Names
-  h+='<div class="edit-section"><div class="edit-section-title">\uD83C\uDFF7\uFE0F Names</div>';
+  // Section: SKU + Names
+  h+='<div class="edit-section"><div class="edit-section-title">\uD83C\uDFF7\uFE0F Identification</div>';
+  h+='<div class="form-group"><label class="form-label">SKU (Internal Catalog #)</label>';
+  h+='<input class="form-input" id="edit-sku" value="'+(it.sku||"")+'" style="font-family:monospace;font-weight:700;font-size:15px;color:#58a6ff;letter-spacing:0.05em"></div>';
   h+='<div class="form-group"><label class="form-label">Name (English)</label><input class="form-input" id="edit-name" value="'+it.name+'"></div>';
   h+='<div class="form-group"><label class="form-label">Name (Spanish)</label><input class="form-input" id="edit-name-es" value="'+(it.nameEs||'')+'"></div>';
   h+='</div>';
@@ -2454,16 +3006,29 @@ function renderBarcodeOverlay() {
     h+='<div style="font-size:11px;color:#8b949e">Point camera at barcode</div></div></div>';
 
     if(lastBarcode==="CAMERA_ERROR") {
-      h+='<div style="padding:8px;border-radius:8px;background:rgba(248,81,73,0.1);border:1px solid rgba(248,81,73,0.15);font-size:11px;color:#f85149;text-align:center">\u26A0 Camera not available on this device</div>';
-    } else if(lastBarcode==="NO_DETECTOR") {
-      // Camera works but no BarcodeDetector - show video with manual
-      h+='<video id="barcode-video" class="barcode-video" autoplay playsinline muted style="width:100%;margin-bottom:8px"></video>';
-      h+='<div style="font-size:11px;color:#d29922;text-align:center">BarcodeDetector not supported \u2014 use external scanner or manual entry</div>';
+      h+='<div style="padding:14px;border-radius:12px;background:rgba(248,81,73,0.1);border:1px solid rgba(248,81,73,0.15);text-align:center;width:90%;max-width:320px">';
+      h+='<div style="font-size:28px;margin-bottom:6px">\u26A0\uFE0F</div>';
+      h+='<div style="font-size:13px;color:#f85149;font-weight:600;margin-bottom:6px">Live Camera Not Available</div>';
+      if(cameraErrorDetail) {
+        h+='<div style="font-size:11px;color:#e6edf3;margin-bottom:10px;line-height:1.5;background:rgba(0,0,0,0.3);padding:8px 10px;border-radius:8px;text-align:left">'+cameraErrorDetail+'</div>';
+      }
+      h+='<div style="font-size:11px;color:#8b949e;margin-bottom:10px">But you can still take a photo of the barcode:</div>';
+      h+='<label style="display:inline-block;padding:12px 24px;border-radius:12px;background:#3fb950;color:#000;font-weight:700;font-size:13px;cursor:pointer">';
+      h+='\uD83D\uDCF7 Take Photo of Barcode';
+      h+='<input type="file" accept="image/*" capture="environment" style="display:none" onchange="scanBarcodeFromPhoto(this)">';
+      h+='</label>';
+      h+='<div style="margin-top:8px"><button style="padding:8px 16px;border-radius:8px;background:rgba(88,166,255,0.15);color:#58a6ff;font-weight:600;font-size:11px;border:none;cursor:pointer" onclick="retryBarcodeScan()">\uD83D\uDD04 Try Live Camera Again</button></div>';
+      h+='</div>';
     } else {
-      // Camera active
-      h+='<video id="barcode-video" class="barcode-video" autoplay playsinline muted style="width:100%"></video>';
-      h+='<div style="text-align:center;margin-top:6px">';
-      h+='<span class="ai-pulse" style="font-size:12px;color:#58a6ff">\uD83D\uDD0D Scanning automatically...</span></div>';
+      // Camera active or loading
+      h+='<video id="barcode-video" class="barcode-video" autoplay playsinline muted style="width:100%;border-radius:10px"></video>';
+      h+='<div id="barcode-status" style="text-align:center;margin-top:6px;font-size:12px">';
+      if(barcodeStream) {
+        h+='<span class="ai-pulse" style="color:#58a6ff">\uD83D\uDD0D Scanning automatically...</span>';
+      } else {
+        h+='<span style="color:#8b949e">\uD83D\uDCF7 Starting camera...</span>';
+      }
+      h+='</div>';
     }
     h+='</div>';
 
@@ -2484,7 +3049,19 @@ function renderBarcodeOverlay() {
     }
     h+='</div>';
 
-    // Method 3: Manual entry
+    // Method 3: Take Photo
+    h+='<div style="padding:16px;border-radius:16px;border:1px solid rgba(210,153,34,0.2);background:rgba(210,153,34,0.04)">';
+    h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">';
+    h+='<div style="width:40px;height:40px;border-radius:12px;background:rgba(210,153,34,0.15);display:flex;align-items:center;justify-content:center;font-size:20px">\uD83D\uDCF8</div>';
+    h+='<div><div style="color:#fff;font-size:14px;font-weight:700">Take Photo</div>';
+    h+='<div style="font-size:11px;color:#8b949e">Snap a picture of the barcode</div></div></div>';
+    h+='<label style="display:block;text-align:center;padding:10px;border-radius:10px;background:rgba(210,153,34,0.15);color:#d29922;font-weight:700;font-size:13px;cursor:pointer">';
+    h+='\uD83D\uDCF7 Open Camera';
+    h+='<input type="file" accept="image/*" capture="environment" style="display:none" onchange="scanBarcodeFromPhoto(this)">';
+    h+='</label>';
+    h+='</div>';
+
+    // Method 4: Manual entry
     h+='<div style="padding:16px;border-radius:16px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.02)">';
     h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">';
     h+='<div style="width:40px;height:40px;border-radius:12px;background:rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:center;font-size:20px">\u2328\uFE0F</div>';
@@ -2664,12 +3241,13 @@ function exportArchiveCSV(){
     if(arcDateTo&&a.ts&&a.ts.substring(0,10)>arcDateTo) return false;
     return true;
   });
-  var csv="Date,Time,Type,Item,Category,Qty,Unit,Price,Total,Storage,Reason,Stock After\n";
+  var csv="Date,Time,Type,SKU,Item,Category,Qty,Unit,Price,Total,Storage,Reason,Stock After\n";
   for(var i=0;i<filtered.length;i++){var a=filtered[i];
     var d=a.ts?new Date(a.ts):new Date();
     csv+=d.toLocaleDateString("en-GB")+",";
     csv+=d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})+",";
     csv+=a.mode+",";
+    csv+='"'+(a.sku||"")+'",';
     csv+='"'+(a.item||"").replace(/"/g,'""')+'",';
     csv+='"'+(a.cat||"")+'",';
     csv+=a.qty+","+a.unit+",";
