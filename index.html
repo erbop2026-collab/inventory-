@@ -665,6 +665,29 @@ var STORAGES = [
 var ADMIN_PIN = "1234";
 var txLog = [];
 
+// ========== DATA PERSISTENCE ==========
+function saveData() {
+  try {
+    localStorage.setItem("invCategories", JSON.stringify(CATEGORIES));
+    localStorage.setItem("invStorages", JSON.stringify(STORAGES));
+    localStorage.setItem("invItemsDB", JSON.stringify(ITEMS_DB));
+    localStorage.setItem("invTxLog", JSON.stringify(txLog));
+  } catch(e) { console.warn("saveData error:", e); }
+}
+function loadData() {
+  try {
+    var c = localStorage.getItem("invCategories");
+    var s = localStorage.getItem("invStorages");
+    var d = localStorage.getItem("invItemsDB");
+    var t = localStorage.getItem("invTxLog");
+    if(c) CATEGORIES = JSON.parse(c);
+    if(s) STORAGES = JSON.parse(s);
+    if(d) ITEMS_DB = JSON.parse(d);
+    if(t) txLog = JSON.parse(t);
+  } catch(e) { console.warn("loadData error:", e); }
+}
+loadData();
+
 
 // ========== STATE ==========
 var isAdmin = false;
@@ -846,6 +869,10 @@ var searchQuery = "";
 var sortBy = "name";
 var sortDir = "asc";
 var adminTab = "dashboard";
+var editingCatIdx = -1; // -1 = not editing, index = editing that category
+var editingLocIdx = -1; // -1 = not editing, index = editing that location
+var showAddCat = false;
+var showAddLoc = false;
 var expandedSubs = {};
 var alertFilter = "all"; // all, zero, low
 
@@ -1300,6 +1327,7 @@ function confirmQty() {
     lastUsedItems.unshift(luEntry);if(lastUsedItems.length>10)lastUsedItems=lastUsedItems.slice(0,10);
     try{localStorage.setItem("lastUsedItems",JSON.stringify(lastUsedItems));}catch(e){}}
   stockOutReason="used";
+  saveData();
   showModal="success";render();
   setTimeout(function(){showModal="";screen="items";quantity="";selSub=null;render();},1200);
 }
@@ -1313,7 +1341,7 @@ function saveCount() {
     txLog.push({item:ITEMS_DB[ci][idx].name,mode:"count",qty:countChanges[k],unit:ITEMS_DB[ci][idx].unit,storage:storage?storage.name:"",time:now()});
     archivePush({item:ITEMS_DB[ci][idx].name,itemId:ITEMS_DB[ci][idx].id||"",cat:"",mode:"count",qty:countChanges[k],unit:ITEMS_DB[ci][idx].unit,price:0,total:0,storage:storage?storage.name:"",reason:"count adj (was "+_oldStock+")",stockAfter:countChanges[k]});
   }
-  countChanges={};showModal="success";render();setTimeout(function(){showModal="";render();},1200);
+  countChanges={};saveData();showModal="success";render();setTimeout(function(){showModal="";render();},1200);
 }
 
 // ========== PIN ==========
@@ -1359,7 +1387,7 @@ function saveEditItem(){
     if(!ITEMS_DB[newCat]) ITEMS_DB[newCat]=[];
     ITEMS_DB[newCat].push(it);
   }
-  editTarget=null;showModal="";render();
+  editTarget=null;showModal="";saveData();render();
 }
 
 // ========== SUB-ITEM (SIZE VARIANT) MANAGEMENT ==========
@@ -1383,7 +1411,7 @@ function addSubItemForm(){
   if(stock>0){
     archivePush({item:editTarget.item.name+" — "+name.trim(),itemId:subId,sku:sku,cat:editTarget.catId,mode:"in",qty:stock,unit:unit,price:price,total:stock*price,storage:"",reason:"initial",stockAfter:stock});
   }
-  render();
+  saveData();render();
 }
 
 function editSubItem(subIdx){
@@ -1402,7 +1430,7 @@ function editSubItem(subIdx){
   if(size!==null&&size!=="") sub.size=parseFloat(size)||sub.size;
   if(price!==null&&price!=="") sub.price=parseFloat(price)||sub.price;
   if(stock!==null&&stock!=="") sub.stock=parseFloat(stock);
-  render();
+  saveData();render();
 }
 
 function removeSubItem(subIdx){
@@ -1410,7 +1438,7 @@ function removeSubItem(subIdx){
   var sub=editTarget.item.subs[subIdx];
   if(!confirm("Remove variant \""+sub.name+"\"?\nStock: "+sub.stock)) return;
   editTarget.item.subs.splice(subIdx,1);
-  render();
+  saveData();render();
 }
 function fetchExternalPrice(){
   var el=document.getElementById("ext-price-status");
@@ -1440,9 +1468,9 @@ function saveNewItem(){
   if(aCrit>=aLow) aLow=aCrit+1;
   var locs=[];for(var si=0;si<STORAGES.length;si++){var cb=document.getElementById("add-loc-"+STORAGES[si].id);if(cb&&cb.checked)locs.push(STORAGES[si].id);}
   ITEMS_DB[selCat.id].push({id:"new_"+Date.now(),name:n.trim(),nameEs:nEs.trim(),emoji:selCat.emoji,unit:u,stock:st,price:pr,barcode:"",alertLow:aLow,alertCrit:aCrit,loc:locs,subs:[]});
-  showModal="";render();
+  saveData();showModal="";render();
 }
-function confirmDelete(){if(deleteTarget)ITEMS_DB[deleteTarget.catId].splice(deleteTarget.idx,1);showModal="";deleteTarget=null;render();}
+function confirmDelete(){if(deleteTarget)ITEMS_DB[deleteTarget.catId].splice(deleteTarget.idx,1);showModal="";deleteTarget=null;saveData();render();}
 
 // ========== ADMIN DELETE & IMPORT ==========
 var adminSelected=[]; // [{catId,idx}]
@@ -1476,7 +1504,7 @@ function adminDeleteOne(catId,idx,name){
   if(!confirm("Delete \""+name+"\"?\nThis cannot be undone.")) return;
   ITEMS_DB[catId].splice(idx,1);
   adminSelected=[];
-  render();
+  saveData();render();
 }
 
 function adminDeleteSelected(){
@@ -1494,7 +1522,7 @@ function adminDeleteSelected(){
     }
   }
   adminSelected=[];
-  render();
+  saveData();render();
 }
 
 // ========== EXCEL IMPORT ==========
@@ -1838,7 +1866,7 @@ function executeImport(){
 
   importPreviewData=null;showModal="";
   adminSelected=[];
-  render();
+  saveData();render();
   setTimeout(function(){
     alert("Import complete!\n\n\u2705 Imported: "+imported+" products\n\u23ED Skipped: "+skipped+" (empty/duplicate)");
   },100);
@@ -2198,7 +2226,7 @@ function saveAdminNewItem(){
     newItem.lastIn=nowShort();
   }
   addProductPhoto="";addProductBarcode="";addProductScanning=false;
-  showModal="success";render();
+  saveData();showModal="success";render();
   setTimeout(function(){showModal="";render();},1200);
 }
 function toggleSub(id){expandedSubs[id]=!expandedSubs[id];render();}
@@ -2555,7 +2583,7 @@ function confirmScanResults(){
     txLog.push({item:r.matchedItem.name,mode:"in",qty:r.qty,unit:r.matchedItem.unit,storage:storage?storage.name:"",time:now(),source:"invoice"});
     archivePush({item:r.matchedItem.name,itemId:r.matchedItem.id||"",cat:"",mode:"in",qty:r.qty,unit:r.matchedItem.unit,price:r.matchedItem.price||0,total:r.qty*(r.matchedItem.price||0),storage:storage?storage.name:"",reason:"invoice",stockAfter:r.matchedItem.stock});
     added++;}
-  scanState="idle";showModal="success";render();setTimeout(function(){showModal="";screen="storage";render();},1500);
+  saveData();scanState="idle";showModal="success";render();setTimeout(function(){showModal="";screen="storage";render();},1500);
 }
 function openInvoice(){startScan();}
 
@@ -3075,10 +3103,12 @@ function renderCount() {
 function renderAdmin() {
   var h=renderHeader("Admin Panel","\u2699\uFE0F Management");
   h+='<div class="admin-nav">';
-  var tabs=[["dashboard","\uD83D\uDCCA Dashboard"],["products","\uD83D\uDCE6 Products"],["archive","\uD83D\uDCC5 Archive"],["variance","\uD83D\uDCCA Variance"],["export","\uD83D\uDCE5 Export"],["api","\uD83D\uDD17 API"],["ai","\uD83E\uDDE0 AI Tools"],["system","\u2699\uFE0F System"]];
+  var tabs=[["dashboard","\uD83D\uDCCA Dashboard"],["categories","\uD83D\uDDC2 Categories"],["locations","\uD83D\uDCCD Locations"],["products","\uD83D\uDCE6 Products"],["archive","\uD83D\uDCC5 Archive"],["variance","\uD83D\uDCCA Variance"],["export","\uD83D\uDCE5 Export"],["api","\uD83D\uDD17 API"],["ai","\uD83E\uDDE0 AI Tools"],["system","\u2699\uFE0F System"]];
   for(var i=0;i<tabs.length;i++) h+='<button class="admin-tab'+(adminTab===tabs[i][0]?' active':'')+'" onclick="adminTab=\''+tabs[i][0]+'\';render()">'+tabs[i][1]+'</button>';
   h+='</div><div class="admin-section">';
   if(adminTab==="dashboard") h+=renderDashboard();
+  else if(adminTab==="categories") h+=renderCategoriesAdmin();
+  else if(adminTab==="locations") h+=renderLocationsAdmin();
   else if(adminTab==="archive") h+=renderArchive();
   else if(adminTab==="variance") h+=renderVariance();
   else if(adminTab==="products") h+=renderProductList();
@@ -3124,6 +3154,218 @@ function renderDashboard() {
     }
   }
   return h;
+}
+
+// ========== CATEGORIES MANAGEMENT ==========
+var CAT_EMOJIS = ["\uD83C\uDF4E","\uD83E\uDD6C","\uD83E\uDD69","\uD83C\uDF57","\uD83D\uDC1F","\uD83C\uDF48","\uD83C\uDF3E","\uD83C\uDF36","\uD83E\uDD54","\uD83E\uDDC0","\uD83C\uDF5E","\uD83E\uDD5B","\uD83C\uDF7C","\uD83C\uDF75","\uD83E\uDD5A","\uD83C\uDF6B","\uD83C\uDF6F","\uD83E\uDD5C","\uD83C\uDF4B","\uD83C\uDF52","\uD83E\uDED2","\uD83C\uDF45","\uD83C\uDF3D","\uD83E\uDD51","\uD83C\uDF46","\uD83C\uDF44","\uD83E\uDDC5","\uD83E\uDD6B","\uD83C\uDF47","\uD83C\uDF4C"];
+var CAT_COLORS = ["#E74C3C","#27AE60","#C0392B","#E67E22","#2980B9","#3498DB","#8D6E63","#FF5722","#9B59B6","#1ABC9C","#F39C12","#D35400","#16A085","#8E44AD","#2C3E50","#E91E63","#00BCD4","#4CAF50","#FF9800","#607D8B"];
+var LOC_ICONS = ["\uD83D\uDC68\u200D\uD83C\uDF73","\u2744\uFE0F","\uD83E\uDDCA","\uD83D\uDCE6","\uD83C\uDFE2","\uD83D\uDEBF","\uD83C\uDFED","\uD83D\uDE9A","\uD83C\uDFAA","\uD83E\uDDF4","\uD83D\uDECE","\uD83C\uDF7D","\uD83D\uDD25","\uD83D\uDCA7","\uD83C\uDF21","\uD83C\uDFE0","\uD83D\uDEE0","\uD83D\uDEB0","\uD83E\uDDF1","\uD83D\uDD12"];
+
+function renderCategoriesAdmin() {
+  var h='';
+  h+='<div style="font-size:18px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">';
+  h+='<span>\uD83D\uDDC2 Categories ('+CATEGORIES.length+')</span>';
+  h+='<button onclick="showAddCat=!showAddCat;editingCatIdx=-1;render()" style="padding:8px 16px;border-radius:10px;background:linear-gradient(135deg,#238636,#2ea043);color:#fff;font-size:13px;font-weight:700;border:none;cursor:pointer">\u2795 Add Category</button>';
+  h+='</div>';
+  if(showAddCat) {
+    h+='<div style="padding:16px;border-radius:14px;border:1px solid rgba(63,185,80,0.3);background:rgba(63,185,80,0.04);margin-bottom:16px">';
+    h+='<div style="font-size:14px;font-weight:700;margin-bottom:12px;color:#3fb950">\u2795 New Category</div>';
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">';
+    h+='<div><label style="font-size:11px;color:#8b949e;margin-bottom:4px;display:block">Name (EN)</label><input id="newcat-name" class="form-input" placeholder="e.g. Dairy"></div>';
+    h+='<div><label style="font-size:11px;color:#8b949e;margin-bottom:4px;display:block">Name (ES)</label><input id="newcat-namees" class="form-input" placeholder="e.g. L\u00e1cteos"></div></div>';
+    h+='<label style="font-size:11px;color:#8b949e;margin-bottom:4px;display:block">Emoji</label>';
+    h+='<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">';
+    for(var ei=0;ei<CAT_EMOJIS.length;ei++) h+='<button onclick="document.getElementById(\'newcat-emoji\').value=\''+CAT_EMOJIS[ei]+'\'" style="font-size:20px;padding:4px 6px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.03);cursor:pointer">'+CAT_EMOJIS[ei]+'</button>';
+    h+='</div><input id="newcat-emoji" class="form-input" value="\uD83D\uDCE6" style="width:60px;text-align:center;font-size:20px;margin-bottom:10px">';
+    h+='<label style="font-size:11px;color:#8b949e;margin-bottom:4px;display:block">Color</label>';
+    h+='<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">';
+    for(var ci=0;ci<CAT_COLORS.length;ci++) h+='<button onclick="document.getElementById(\'newcat-color\').value=\''+CAT_COLORS[ci]+'\'" style="width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,0.1);background:'+CAT_COLORS[ci]+';cursor:pointer"></button>';
+    h+='</div><input id="newcat-color" class="form-input" value="#3498DB" style="width:100px;margin-bottom:12px">';
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">';
+    h+='<div><label style="font-size:11px;color:#8b949e;margin-bottom:4px;display:block">Default Reorder Point</label><input id="newcat-low" class="form-input" type="number" value="15"></div>';
+    h+='<div><label style="font-size:11px;color:#8b949e;margin-bottom:4px;display:block">Default Critical Level</label><input id="newcat-crit" class="form-input" type="number" value="5"></div></div>';
+    h+='<div style="display:flex;gap:8px">';
+    h+='<button onclick="addCategory()" style="flex:1;padding:10px;border-radius:10px;background:#238636;color:#fff;font-size:13px;font-weight:700;border:none;cursor:pointer">\u2705 Save</button>';
+    h+='<button onclick="showAddCat=false;render()" style="padding:10px 16px;border-radius:10px;background:rgba(255,255,255,0.06);color:#8b949e;font-size:13px;border:none;cursor:pointer">\u274C Cancel</button>';
+    h+='</div></div>';
+  }
+  for(var i=0;i<CATEGORIES.length;i++){
+    var cat=CATEGORIES[i]; var itemCount=(ITEMS_DB[cat.id]||[]).length; var isEditing=editingCatIdx===i;
+    h+='<div style="padding:14px;border-radius:14px;border:1px solid '+(isEditing?'rgba(139,92,246,0.3)':'rgba(255,255,255,0.06)')+';background:'+(isEditing?'rgba(139,92,246,0.04)':'rgba(255,255,255,0.02)')+';margin-bottom:8px">';
+    if(isEditing) {
+      h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">';
+      h+='<div><label style="font-size:11px;color:#8b949e;display:block;margin-bottom:3px">Name (EN)</label><input id="editcat-name" class="form-input" value="'+cat.name+'"></div>';
+      h+='<div><label style="font-size:11px;color:#8b949e;display:block;margin-bottom:3px">Name (ES)</label><input id="editcat-namees" class="form-input" value="'+(cat.nameEs||'')+'"></div></div>';
+      h+='<div style="display:flex;gap:10px;margin-bottom:10px;align-items:flex-end;flex-wrap:wrap">';
+      h+='<div><label style="font-size:11px;color:#8b949e;display:block;margin-bottom:3px">Emoji</label>';
+      h+='<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px">';
+      for(var ei2=0;ei2<CAT_EMOJIS.length;ei2++) h+='<button onclick="document.getElementById(\'editcat-emoji\').value=\''+CAT_EMOJIS[ei2]+'\'" style="font-size:16px;padding:2px 4px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.03);cursor:pointer">'+CAT_EMOJIS[ei2]+'</button>';
+      h+='</div><input id="editcat-emoji" class="form-input" value="'+cat.emoji+'" style="width:60px;text-align:center;font-size:20px"></div>';
+      h+='<div><label style="font-size:11px;color:#8b949e;display:block;margin-bottom:3px">Color</label>';
+      h+='<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px">';
+      for(var ci5=0;ci5<CAT_COLORS.length;ci5++) h+='<button onclick="document.getElementById(\'editcat-color\').value=\''+CAT_COLORS[ci5]+'\'" style="width:22px;height:22px;border-radius:50%;border:1px solid rgba(255,255,255,0.1);background:'+CAT_COLORS[ci5]+';cursor:pointer"></button>';
+      h+='</div><input id="editcat-color" class="form-input" value="'+cat.color+'" style="width:90px"></div></div>';
+      h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">';
+      h+='<div><label style="font-size:11px;color:#8b949e;display:block;margin-bottom:3px">Default Reorder Point</label><input id="editcat-low" class="form-input" type="number" value="'+(cat.defaultAlertLow||15)+'"></div>';
+      h+='<div><label style="font-size:11px;color:#8b949e;display:block;margin-bottom:3px">Default Critical Level</label><input id="editcat-crit" class="form-input" type="number" value="'+(cat.defaultAlertCrit||5)+'"></div></div>';
+      h+='<div style="display:flex;gap:8px">';
+      h+='<button onclick="saveCategoryEdit('+i+')" style="flex:1;padding:8px;border-radius:8px;background:#238636;color:#fff;font-size:12px;font-weight:700;border:none;cursor:pointer">\u2705 Save</button>';
+      h+='<button onclick="editingCatIdx=-1;render()" style="padding:8px 14px;border-radius:8px;background:rgba(255,255,255,0.06);color:#8b949e;font-size:12px;border:none;cursor:pointer">Cancel</button></div>';
+    } else {
+      h+='<div style="display:flex;align-items:center;gap:12px">';
+      h+='<div style="font-size:28px">'+cat.emoji+'</div>';
+      h+='<div style="flex:1"><div style="font-size:14px;font-weight:700">'+cat.name+'</div>';
+      if(cat.nameEs) h+='<div style="font-size:11px;color:#8b949e;font-style:italic">'+cat.nameEs+'</div>';
+      h+='<div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">';
+      h+='<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:'+cat.color+'22;color:'+cat.color+';border:1px solid '+cat.color+'44">'+itemCount+' products</span>';
+      h+='<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(255,255,255,0.04);color:#8b949e">ID: '+cat.id+'</span>';
+      if(cat.defaultAlertLow) h+='<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(210,153,34,0.1);color:#d29922">\u26A0 '+cat.defaultAlertLow+'</span>';
+      h+='</div></div>';
+      h+='<div style="width:6px;height:28px;border-radius:3px;background:'+cat.color+'"></div>';
+      h+='<div style="display:flex;flex-direction:column;gap:4px">';
+      if(i>0) h+='<button onclick="moveCat('+i+',-1)" style="padding:2px 6px;border-radius:6px;font-size:14px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.03);cursor:pointer">\u2B06</button>';
+      if(i<CATEGORIES.length-1) h+='<button onclick="moveCat('+i+',1)" style="padding:2px 6px;border-radius:6px;font-size:14px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.03);cursor:pointer">\u2B07</button>';
+      h+='</div>';
+      h+='<button onclick="editingCatIdx='+i+';showAddCat=false;render()" style="padding:6px 12px;border-radius:8px;font-size:12px;background:rgba(139,92,246,0.1);color:#a78bfa;border:1px solid rgba(139,92,246,0.2);cursor:pointer">\u270F</button>';
+      h+='<button onclick="deleteCategory('+i+')" style="padding:6px 12px;border-radius:8px;font-size:12px;background:rgba(248,81,73,0.1);color:#f85149;border:1px solid rgba(248,81,73,0.2);cursor:pointer">\uD83D\uDDD1</button>';
+      h+='</div>';
+    }
+    h+='</div>';
+  }
+  h+='<div style="margin-top:16px;padding:14px;border-radius:14px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02)">';
+  h+='<div style="font-size:12px;font-weight:700;color:#8b949e;margin-bottom:8px">\uD83D\uDCA1 Tips</div>';
+  h+='<div style="font-size:11px;color:#8b949e;line-height:1.6">\u2022 Categories organize products into groups (Fruits, Vegetables, Meat, etc.)<br>\u2022 Default alert thresholds apply to new products added to this category<br>\u2022 Use arrows to reorder \u2014 affects display order in the app<br>\u2022 Cannot delete a category that still has products</div></div>';
+  return h;
+}
+function addCategory() {
+  var name=document.getElementById("newcat-name").value.trim();
+  var nameEs=document.getElementById("newcat-namees").value.trim();
+  var emoji=document.getElementById("newcat-emoji").value.trim()||"\uD83D\uDCE6";
+  var color=document.getElementById("newcat-color").value.trim()||"#3498DB";
+  var low=parseInt(document.getElementById("newcat-low").value)||15;
+  var crit=parseInt(document.getElementById("newcat-crit").value)||5;
+  if(!name){alert("Category name is required");return;}
+  var id=name.toLowerCase().replace(/[^a-z0-9]/g,"_").replace(/_+/g,"_");
+  for(var i=0;i<CATEGORIES.length;i++) if(CATEGORIES[i].id===id){alert("Category '"+id+"' already exists");return;}
+  CATEGORIES.push({id:id,name:name,nameEs:nameEs,emoji:emoji,color:color,defaultAlertLow:low,defaultAlertCrit:crit});
+  ITEMS_DB[id]=[];saveData();showAddCat=false;render();
+}
+function saveCategoryEdit(idx) {
+  var cat=CATEGORIES[idx];
+  var name=document.getElementById("editcat-name").value.trim();
+  if(!name){alert("Category name is required");return;}
+  cat.name=name;cat.nameEs=document.getElementById("editcat-namees").value.trim();
+  cat.emoji=document.getElementById("editcat-emoji").value.trim()||cat.emoji;
+  cat.color=document.getElementById("editcat-color").value.trim()||cat.color;
+  cat.defaultAlertLow=parseInt(document.getElementById("editcat-low").value)||15;
+  cat.defaultAlertCrit=parseInt(document.getElementById("editcat-crit").value)||5;
+  saveData();editingCatIdx=-1;render();
+}
+function deleteCategory(idx) {
+  var cat=CATEGORIES[idx];var items=(ITEMS_DB[cat.id]||[]);
+  if(items.length>0){alert("Cannot delete '"+cat.name+"' \u2014 it still has "+items.length+" products.\nMove or delete all products first.");return;}
+  if(!confirm("Delete category '"+cat.name+"'?")) return;
+  CATEGORIES.splice(idx,1);delete ITEMS_DB[cat.id];saveData();render();
+}
+function moveCat(idx,dir) {
+  var n=idx+dir;if(n<0||n>=CATEGORIES.length)return;
+  var t=CATEGORIES[idx];CATEGORIES[idx]=CATEGORIES[n];CATEGORIES[n]=t;saveData();render();
+}
+
+// ========== STORAGE LOCATIONS MANAGEMENT ==========
+function renderLocationsAdmin() {
+  var h='';
+  h+='<div style="font-size:18px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">';
+  h+='<span>\uD83D\uDCCD Storage Locations ('+STORAGES.length+')</span>';
+  h+='<button onclick="showAddLoc=!showAddLoc;editingLocIdx=-1;render()" style="padding:8px 16px;border-radius:10px;background:linear-gradient(135deg,#238636,#2ea043);color:#fff;font-size:13px;font-weight:700;border:none;cursor:pointer">\u2795 Add Location</button>';
+  h+='</div>';
+  if(showAddLoc) {
+    h+='<div style="padding:16px;border-radius:14px;border:1px solid rgba(63,185,80,0.3);background:rgba(63,185,80,0.04);margin-bottom:16px">';
+    h+='<div style="font-size:14px;font-weight:700;margin-bottom:12px;color:#3fb950">\u2795 New Storage Location</div>';
+    h+='<div><label style="font-size:11px;color:#8b949e;margin-bottom:4px;display:block">Location Name</label><input id="newloc-name" class="form-input" placeholder="e.g. Walk-in Cooler" style="margin-bottom:10px"></div>';
+    h+='<label style="font-size:11px;color:#8b949e;margin-bottom:4px;display:block">Icon</label>';
+    h+='<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">';
+    for(var li=0;li<LOC_ICONS.length;li++) h+='<button onclick="document.getElementById(\'newloc-icon\').value=\''+LOC_ICONS[li]+'\'" style="font-size:20px;padding:4px 6px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.03);cursor:pointer">'+LOC_ICONS[li]+'</button>';
+    h+='</div><input id="newloc-icon" class="form-input" value="\uD83D\uDCE6" style="width:60px;text-align:center;font-size:20px;margin-bottom:10px">';
+    h+='<label style="font-size:11px;color:#8b949e;margin-bottom:4px;display:block">Color</label>';
+    h+='<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">';
+    for(var ci6=0;ci6<CAT_COLORS.length;ci6++) h+='<button onclick="document.getElementById(\'newloc-color\').value=\''+CAT_COLORS[ci6]+'\'" style="width:28px;height:28px;border-radius:50%;border:2px solid rgba(255,255,255,0.1);background:'+CAT_COLORS[ci6]+';cursor:pointer"></button>';
+    h+='</div><input id="newloc-color" class="form-input" value="#3498DB" style="width:100px;margin-bottom:12px">';
+    h+='<div style="display:flex;gap:8px">';
+    h+='<button onclick="addLocation()" style="flex:1;padding:10px;border-radius:10px;background:#238636;color:#fff;font-size:13px;font-weight:700;border:none;cursor:pointer">\u2705 Save</button>';
+    h+='<button onclick="showAddLoc=false;render()" style="padding:10px 16px;border-radius:10px;background:rgba(255,255,255,0.06);color:#8b949e;font-size:13px;border:none;cursor:pointer">\u274C Cancel</button>';
+    h+='</div></div>';
+  }
+  for(var i=0;i<STORAGES.length;i++){
+    var loc=STORAGES[i]; var isEditing=editingLocIdx===i;
+    var prodCount=0;for(var c in ITEMS_DB) for(var j=0;j<ITEMS_DB[c].length;j++) if(ITEMS_DB[c][j].loc&&ITEMS_DB[c][j].loc.indexOf(loc.id)!==-1) prodCount++;
+    h+='<div style="padding:14px;border-radius:14px;border:1px solid '+(isEditing?'rgba(139,92,246,0.3)':'rgba(255,255,255,0.06)')+';background:'+(isEditing?'rgba(139,92,246,0.04)':'rgba(255,255,255,0.02)')+';margin-bottom:8px">';
+    if(isEditing) {
+      h+='<div><label style="font-size:11px;color:#8b949e;display:block;margin-bottom:3px">Location Name</label><input id="editloc-name" class="form-input" value="'+loc.name+'" style="margin-bottom:10px"></div>';
+      h+='<div style="display:flex;gap:10px;margin-bottom:10px;align-items:flex-end;flex-wrap:wrap">';
+      h+='<div><label style="font-size:11px;color:#8b949e;display:block;margin-bottom:3px">Icon</label>';
+      h+='<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px">';
+      for(var li2=0;li2<LOC_ICONS.length;li2++) h+='<button onclick="document.getElementById(\'editloc-icon\').value=\''+LOC_ICONS[li2]+'\'" style="font-size:16px;padding:2px 4px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.03);cursor:pointer">'+LOC_ICONS[li2]+'</button>';
+      h+='</div><input id="editloc-icon" class="form-input" value="'+loc.icon+'" style="width:60px;text-align:center;font-size:20px"></div>';
+      h+='<div><label style="font-size:11px;color:#8b949e;display:block;margin-bottom:3px">Color</label>';
+      h+='<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px">';
+      for(var ci7=0;ci7<CAT_COLORS.length;ci7++) h+='<button onclick="document.getElementById(\'editloc-color\').value=\''+CAT_COLORS[ci7]+'\'" style="width:22px;height:22px;border-radius:50%;border:1px solid rgba(255,255,255,0.1);background:'+CAT_COLORS[ci7]+';cursor:pointer"></button>';
+      h+='</div><input id="editloc-color" class="form-input" value="'+(loc.color||"#3498DB")+'" style="width:90px"></div></div>';
+      h+='<div style="display:flex;gap:8px">';
+      h+='<button onclick="saveLocationEdit('+i+')" style="flex:1;padding:8px;border-radius:8px;background:#238636;color:#fff;font-size:12px;font-weight:700;border:none;cursor:pointer">\u2705 Save</button>';
+      h+='<button onclick="editingLocIdx=-1;render()" style="padding:8px 14px;border-radius:8px;background:rgba(255,255,255,0.06);color:#8b949e;font-size:12px;border:none;cursor:pointer">Cancel</button></div>';
+    } else {
+      h+='<div style="display:flex;align-items:center;gap:12px">';
+      h+='<div style="font-size:28px">'+loc.icon+'</div>';
+      h+='<div style="flex:1"><div style="font-size:14px;font-weight:700">'+loc.name+'</div>';
+      h+='<div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">';
+      h+='<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:'+(loc.color||"#3498DB")+'22;color:'+(loc.color||"#3498DB")+';border:1px solid '+(loc.color||"#3498DB")+'44">'+prodCount+' products</span>';
+      h+='<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(255,255,255,0.04);color:#8b949e">ID: '+loc.id+'</span>';
+      h+='</div></div>';
+      h+='<div style="display:flex;flex-direction:column;gap:4px">';
+      if(i>0) h+='<button onclick="moveLoc('+i+',-1)" style="padding:2px 6px;border-radius:6px;font-size:14px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.03);cursor:pointer">\u2B06</button>';
+      if(i<STORAGES.length-1) h+='<button onclick="moveLoc('+i+',1)" style="padding:2px 6px;border-radius:6px;font-size:14px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.03);cursor:pointer">\u2B07</button>';
+      h+='</div>';
+      h+='<button onclick="editingLocIdx='+i+';showAddLoc=false;render()" style="padding:6px 12px;border-radius:8px;font-size:12px;background:rgba(139,92,246,0.1);color:#a78bfa;border:1px solid rgba(139,92,246,0.2);cursor:pointer">\u270F</button>';
+      h+='<button onclick="deleteLocation('+i+')" style="padding:6px 12px;border-radius:8px;font-size:12px;background:rgba(248,81,73,0.1);color:#f85149;border:1px solid rgba(248,81,73,0.2);cursor:pointer">\uD83D\uDDD1</button>';
+      h+='</div>';
+    }
+    h+='</div>';
+  }
+  h+='<div style="margin-top:16px;padding:14px;border-radius:14px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02)">';
+  h+='<div style="font-size:12px;font-weight:700;color:#8b949e;margin-bottom:8px">\uD83D\uDCA1 Tips</div>';
+  h+='<div style="font-size:11px;color:#8b949e;line-height:1.6">\u2022 Storage locations define where items are physically stored<br>\u2022 Products can be assigned to multiple locations (e.g. Chicken \u2192 Fridge + Freezer)<br>\u2022 When doing Stock In/Out, select a location to filter products<br>\u2022 Deleting a location with products will remove the assignment from those products</div></div>';
+  return h;
+}
+function addLocation() {
+  var name=document.getElementById("newloc-name").value.trim();
+  var icon=document.getElementById("newloc-icon").value.trim()||"\uD83D\uDCE6";
+  var color=document.getElementById("newloc-color").value.trim()||"#3498DB";
+  if(!name){alert("Location name is required");return;}
+  var id=name.toLowerCase().replace(/[^a-z0-9]/g,"_").replace(/_+/g,"_");
+  for(var i=0;i<STORAGES.length;i++) if(STORAGES[i].id===id){alert("Location '"+id+"' already exists");return;}
+  STORAGES.push({id:id,name:name,icon:icon,color:color});saveData();showAddLoc=false;render();
+}
+function saveLocationEdit(idx) {
+  var loc=STORAGES[idx];
+  var name=document.getElementById("editloc-name").value.trim();
+  if(!name){alert("Location name is required");return;}
+  loc.name=name;loc.icon=document.getElementById("editloc-icon").value.trim()||loc.icon;
+  loc.color=document.getElementById("editloc-color").value.trim()||loc.color;
+  saveData();editingLocIdx=-1;render();
+}
+function deleteLocation(idx) {
+  var loc=STORAGES[idx]; var prodCount=0;
+  for(var c in ITEMS_DB) for(var j=0;j<ITEMS_DB[c].length;j++) if(ITEMS_DB[c][j].loc&&ITEMS_DB[c][j].loc.indexOf(loc.id)!==-1) prodCount++;
+  if(prodCount>0){
+    if(!confirm(loc.name+" has "+prodCount+" products assigned.\nDelete anyway? Products keep other locations.")){return;}
+    for(var c2 in ITEMS_DB) for(var j2=0;j2<ITEMS_DB[c2].length;j2++){var it=ITEMS_DB[c2][j2];if(it.loc){var li3=it.loc.indexOf(loc.id);if(li3!==-1)it.loc.splice(li3,1);}}
+  } else { if(!confirm("Delete location '"+loc.name+"'?")) return; }
+  STORAGES.splice(idx,1);saveData();render();
+}
+function moveLoc(idx,dir) {
+  var n=idx+dir;if(n<0||n>=STORAGES.length)return;
+  var t=STORAGES[idx];STORAGES[idx]=STORAGES[n];STORAGES[n]=t;saveData();render();
 }
 
 function renderProductList() {
@@ -3410,6 +3652,15 @@ function renderSystem() {
 
   h+='<div style="margin-top:16px;padding:12px;border-radius:12px;background:rgba(139,92,246,0.04);border:1px solid rgba(139,92,246,0.1);font-size:11px;color:#8b949e;line-height:1.6">';
   h+='\uD83D\uDCA1 <strong>External App Migration:</strong> The JSON export contains the complete data model in a standard format. Any Node.js/Python/React app can import this directly. The API payload format matches REST conventions for easy integration with Express, Flask, or similar backends.</div>';
+
+  h+='<div style="font-size:13px;font-weight:600;color:#8b949e;margin:16px 0 8px;text-transform:uppercase;letter-spacing:0.06em">\uD83D\uDDD1 Data Management</div>';
+  h+='<div style="padding:14px;border-radius:14px;border:1px solid rgba(248,81,73,0.15);background:rgba(248,81,73,0.04)">';
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap">';
+  h+='<button onclick="if(confirm(\'Reset ALL data to factory defaults?\\n\\nThis will delete all custom categories, locations, products, and stock changes!\\n\\nThis CANNOT be undone!\')){localStorage.removeItem(\'invCategories\');localStorage.removeItem(\'invStorages\');localStorage.removeItem(\'invItemsDB\');localStorage.removeItem(\'invTxLog\');location.reload();}" style="padding:10px 16px;border-radius:10px;background:rgba(248,81,73,0.15);color:#f85149;font-size:12px;font-weight:700;border:1px solid rgba(248,81,73,0.3);cursor:pointer">\uD83D\uDDD1 Reset to Factory Defaults</button>';
+  h+='<button onclick="if(confirm(\'Clear all stock levels to 0?\')){for(var c in ITEMS_DB)for(var i=0;i<ITEMS_DB[c].length;i++){ITEMS_DB[c][i].stock=0;if(ITEMS_DB[c][i].subs)for(var s=0;s<ITEMS_DB[c][i].subs.length;s++)ITEMS_DB[c][i].subs[s].stock=0;}saveData();render();}" style="padding:10px 16px;border-radius:10px;background:rgba(210,153,34,0.15);color:#d29922;font-size:12px;font-weight:700;border:1px solid rgba(210,153,34,0.3);cursor:pointer">\u26A0 Zero All Stock</button>';
+  h+='</div>';
+  h+='<div style="font-size:10px;color:#8b949e;margin-top:8px">Data is auto-saved to browser storage (localStorage). Factory reset removes all custom data.</div>';
+  h+='</div>';
 
   return h;
 }
@@ -3946,7 +4197,7 @@ function executeTransfer(){
       moved++;
     }
   }
-  if(moved>0){showModal="success";render();setTimeout(function(){showModal="";screen="main";render();},1200);}
+  if(moved>0){saveData();showModal="success";render();setTimeout(function(){showModal="";screen="main";render();},1200);}
 }
 
 // ========== COUNT SHEET ==========
