@@ -3184,6 +3184,12 @@ function renderCategoriesAdmin() {
     h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">';
     h+='<div><label style="font-size:11px;color:#8b949e;margin-bottom:4px;display:block">Default Reorder Point</label><input id="newcat-low" class="form-input" type="number" value="15"></div>';
     h+='<div><label style="font-size:11px;color:#8b949e;margin-bottom:4px;display:block">Default Critical Level</label><input id="newcat-crit" class="form-input" type="number" value="5"></div></div>';
+    h+='<label style="font-size:11px;color:#8b949e;margin-bottom:4px;display:block">Default Storage Locations</label>';
+    h+='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">';
+    for(var sli=0;sli<STORAGES.length;sli++){var sl=STORAGES[sli];
+      h+='<label style="display:flex;align-items:center;gap:4px;padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);cursor:pointer;font-size:12px">';
+      h+='<input type="checkbox" id="newcat-loc-'+sl.id+'"> '+sl.icon+' '+sl.name+'</label>';}
+    h+='</div>';
     h+='<div style="display:flex;gap:8px">';
     h+='<button onclick="addCategory()" style="flex:1;padding:10px;border-radius:10px;background:#238636;color:#fff;font-size:13px;font-weight:700;border:none;cursor:pointer">\u2705 Save</button>';
     h+='<button onclick="showAddCat=false;render()" style="padding:10px 16px;border-radius:10px;background:rgba(255,255,255,0.06);color:#8b949e;font-size:13px;border:none;cursor:pointer">\u274C Cancel</button>';
@@ -3208,6 +3214,13 @@ function renderCategoriesAdmin() {
       h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">';
       h+='<div><label style="font-size:11px;color:#8b949e;display:block;margin-bottom:3px">Default Reorder Point</label><input id="editcat-low" class="form-input" type="number" value="'+(cat.defaultAlertLow||15)+'"></div>';
       h+='<div><label style="font-size:11px;color:#8b949e;display:block;margin-bottom:3px">Default Critical Level</label><input id="editcat-crit" class="form-input" type="number" value="'+(cat.defaultAlertCrit||5)+'"></div></div>';
+      h+='<label style="font-size:11px;color:#8b949e;margin-bottom:4px;display:block">Default Storage Locations</label>';
+      h+='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">';
+      var catLocs=cat.defaultLoc||[];
+      for(var sli2=0;sli2<STORAGES.length;sli2++){var sl2=STORAGES[sli2];var slChecked=catLocs.indexOf(sl2.id)!==-1;
+        h+='<label style="display:flex;align-items:center;gap:4px;padding:6px 10px;border-radius:8px;border:1px solid '+(slChecked?'rgba(88,166,255,0.3)':'rgba(255,255,255,0.08)')+';background:'+(slChecked?'rgba(88,166,255,0.08)':'rgba(255,255,255,0.03)')+';cursor:pointer;font-size:12px">';
+        h+='<input type="checkbox" id="editcat-loc-'+sl2.id+'"'+(slChecked?' checked':'')+' > '+sl2.icon+' '+sl2.name+'</label>';}
+      h+='</div>';
       h+='<div style="display:flex;gap:8px">';
       h+='<button onclick="saveCategoryEdit('+i+')" style="flex:1;padding:8px;border-radius:8px;background:#238636;color:#fff;font-size:12px;font-weight:700;border:none;cursor:pointer">\u2705 Save</button>';
       h+='<button onclick="editingCatIdx=-1;render()" style="padding:8px 14px;border-radius:8px;background:rgba(255,255,255,0.06);color:#8b949e;font-size:12px;border:none;cursor:pointer">Cancel</button></div>';
@@ -3220,6 +3233,8 @@ function renderCategoriesAdmin() {
       h+='<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:'+cat.color+'22;color:'+cat.color+';border:1px solid '+cat.color+'44">'+itemCount+' products</span>';
       h+='<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(255,255,255,0.04);color:#8b949e">ID: '+cat.id+'</span>';
       if(cat.defaultAlertLow) h+='<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(210,153,34,0.1);color:#d29922">\u26A0 '+cat.defaultAlertLow+'</span>';
+      if(cat.defaultLoc&&cat.defaultLoc.length>0){for(var dli=0;dli<cat.defaultLoc.length;dli++){var dloc=null;for(var dli2=0;dli2<STORAGES.length;dli2++)if(STORAGES[dli2].id===cat.defaultLoc[dli]){dloc=STORAGES[dli2];break;}
+        if(dloc) h+='<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(88,166,255,0.08);color:#58a6ff;border:1px solid rgba(88,166,255,0.2)">'+dloc.icon+' '+dloc.name+'</span>';}}
       h+='</div></div>';
       h+='<div style="width:6px;height:28px;border-radius:3px;background:'+cat.color+'"></div>';
       h+='<div style="display:flex;flex-direction:column;gap:4px">';
@@ -3234,7 +3249,7 @@ function renderCategoriesAdmin() {
   }
   h+='<div style="margin-top:16px;padding:14px;border-radius:14px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02)">';
   h+='<div style="font-size:12px;font-weight:700;color:#8b949e;margin-bottom:8px">\uD83D\uDCA1 Tips</div>';
-  h+='<div style="font-size:11px;color:#8b949e;line-height:1.6">\u2022 Categories organize products into groups (Fruits, Vegetables, Meat, etc.)<br>\u2022 Default alert thresholds apply to new products added to this category<br>\u2022 Use arrows to reorder \u2014 affects display order in the app<br>\u2022 Cannot delete a category that still has products</div></div>';
+  h+='<div style="font-size:11px;color:#8b949e;line-height:1.6">\u2022 Categories organize products into groups (Fruits, Vegetables, Meat, etc.)<br>\u2022 Default storage locations auto-apply when adding new products to this category<br>\u2022 Default alert thresholds apply to new products added to this category<br>\u2022 Use arrows to reorder \u2014 affects display order in the app<br>\u2022 Cannot delete a category that still has products</div></div>';
   return h;
 }
 function addCategory() {
@@ -3244,10 +3259,11 @@ function addCategory() {
   var color=document.getElementById("newcat-color").value.trim()||"#3498DB";
   var low=parseInt(document.getElementById("newcat-low").value)||15;
   var crit=parseInt(document.getElementById("newcat-crit").value)||5;
+  var defLocs=[];for(var sli=0;sli<STORAGES.length;sli++){var cb=document.getElementById("newcat-loc-"+STORAGES[sli].id);if(cb&&cb.checked)defLocs.push(STORAGES[sli].id);}
   if(!name){alert("Category name is required");return;}
   var id=name.toLowerCase().replace(/[^a-z0-9]/g,"_").replace(/_+/g,"_");
   for(var i=0;i<CATEGORIES.length;i++) if(CATEGORIES[i].id===id){alert("Category '"+id+"' already exists");return;}
-  CATEGORIES.push({id:id,name:name,nameEs:nameEs,emoji:emoji,color:color,defaultAlertLow:low,defaultAlertCrit:crit});
+  CATEGORIES.push({id:id,name:name,nameEs:nameEs,emoji:emoji,color:color,defaultAlertLow:low,defaultAlertCrit:crit,defaultLoc:defLocs});
   ITEMS_DB[id]=[];saveData();showAddCat=false;render();
 }
 function saveCategoryEdit(idx) {
@@ -3259,6 +3275,8 @@ function saveCategoryEdit(idx) {
   cat.color=document.getElementById("editcat-color").value.trim()||cat.color;
   cat.defaultAlertLow=parseInt(document.getElementById("editcat-low").value)||15;
   cat.defaultAlertCrit=parseInt(document.getElementById("editcat-crit").value)||5;
+  var defLocs=[];for(var sli=0;sli<STORAGES.length;sli++){var cb=document.getElementById("editcat-loc-"+STORAGES[sli].id);if(cb&&cb.checked)defLocs.push(STORAGES[sli].id);}
+  cat.defaultLoc=defLocs;
   saveData();editingCatIdx=-1;render();
 }
 function deleteCategory(idx) {
@@ -3716,9 +3734,11 @@ function renderAddModal() {
   // Location checkboxes
   h+='<div class="form-group"><label class="form-label">Storage Locations</label>';
   h+='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">';
+  var catDefLocs=(selCat&&selCat.defaultLoc)?selCat.defaultLoc:null;
   for(var si=0;si<STORAGES.length;si++){var s=STORAGES[si];
-    h+='<label style="display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);font-size:12px;cursor:pointer">';
-    h+='<input type="checkbox" id="add-loc-'+s.id+'" checked style="accent-color:'+s.color+'"> '+s.icon+' '+s.name+'</label>';
+    var locChk=catDefLocs?catDefLocs.indexOf(s.id)!==-1:true;
+    h+='<label style="display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:10px;border:1px solid '+(locChk?'rgba(88,166,255,0.3)':'rgba(255,255,255,0.08)')+';background:'+(locChk?'rgba(88,166,255,0.06)':'rgba(255,255,255,0.03)')+';font-size:12px;cursor:pointer">';
+    h+='<input type="checkbox" id="add-loc-'+s.id+'"'+(locChk?' checked':'')+' style="accent-color:'+s.color+'"> '+s.icon+' '+s.name+'</label>';
   }
   h+='</div></div>';
   h+='<div class="btn-row"><button class="btn-cancel" onclick="showModal=\'\';render()">Cancel</button>';
