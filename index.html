@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0a0e13">
-<title>Smart Inventory</title>
+<title>Inventory Control System</title>
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-192x192.png">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -445,7 +445,7 @@ input,select,textarea{font-family:inherit;color:inherit}
 <div class="bg-glow"></div><div class="bg-glow2"></div>
 <div id="install-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;backdrop-filter:blur(12px)">
 <div style="background:#12161d;border:1px solid rgba(88,166,255,0.2);border-radius:20px;padding:32px 28px;max-width:340px;width:90%;text-align:center">
-<div style="font-size:20px;font-weight:800;margin-bottom:6px">&#x1F4E6; Smart Inventory</div>
+<div style="font-size:20px;font-weight:800;margin-bottom:6px">&#x1F4E6; Inventory Control System</div>
 <div style="font-size:13px;color:#8b949e;margin-bottom:24px;line-height:1.5">Install for offline access</div>
 <div id="inst-auto" style="display:none"><button onclick="doInstall()" class="confirm-btn green" style="margin-bottom:10px">&#x2B07;&#xFE0F; Install</button></div>
 <div id="inst-manual"><div style="text-align:left;background:rgba(88,166,255,0.06);border-radius:10px;padding:12px;font-size:12px;color:#58a6ff;margin-bottom:14px;line-height:1.7">
@@ -672,6 +672,8 @@ function saveData() {
     localStorage.setItem("invStorages", JSON.stringify(STORAGES));
     localStorage.setItem("invItemsDB", JSON.stringify(ITEMS_DB));
     localStorage.setItem("invTxLog", JSON.stringify(txLog));
+    localStorage.setItem("invOrdered", JSON.stringify(orderedItems));
+    localStorage.setItem("invEmployees", JSON.stringify(employees));
   } catch(e) { console.warn("saveData error:", e); }
 }
 function loadData() {
@@ -693,6 +695,9 @@ loadData();
 var isAdmin = false;
 var screen = "main"; 
 var mode = "";
+// Employee / user identification
+var employees = JSON.parse(localStorage.getItem("invEmployees")||'["Manager","Staff 1","Staff 2"]');
+var currentUser = localStorage.getItem("invCurrentUser")||"";
 var storage = null;
 var selCat = null;
 var selItemCatId = null;
@@ -719,6 +724,7 @@ var archive = JSON.parse(localStorage.getItem("invArchive")||"[]");
 function archivePush(entry){
   entry.id="tx_"+Date.now()+"_"+Math.random().toString(36).substr(2,4);
   entry.ts=new Date().toISOString();
+  entry.user=currentUser||"";
   archive.push(entry);
   try{localStorage.setItem("invArchive",JSON.stringify(archive));}catch(e){
     // If storage full, trim oldest 20%
@@ -732,6 +738,7 @@ var arcDateFrom="";
 var arcDateTo="";
 var arcModeFilter="all";
 var arcSearchQ="";
+var arcUserFilter="all";
 
 // ========== SKU (Internal Catalog Number) ==========
 var SKU_PREFIXES={"fruits":"FRU","vegetables":"VEG","meat":"MET","poultry":"PLT","fish":"FSH","melons":"MEL","dry_goods":"DRY","spices":"SPC","roots":"ROT"};
@@ -874,7 +881,10 @@ var editingLocIdx = -1; // -1 = not editing, index = editing that location
 var showAddCat = false;
 var showAddLoc = false;
 var expandedSubs = {};
-var alertFilter = "all"; // all, zero, low
+var alertFilter = "all"; // all, zero, low, ordered, pending
+// Purchase Order tracking: {itemId: {status,supplier,qtyOrdered,qtyReceived,date,by,ts}}
+// status: "ordered"|"partial"|"received"
+var orderedItems = JSON.parse(localStorage.getItem("invOrdered")||"{}");
 
 // ========== ALERTS ==========
 function getAlerts() {
@@ -1146,9 +1156,12 @@ function exportAppState() {
     version:APP_VERSION,
     exported:new Date().toISOString(),
     items:ITEMS_DB,
-    categories:CATEGORIES.map(function(c){return{id:c.id,name:c.name,nameEs:c.nameEs,emoji:c.emoji};}),
-    storages:STORAGES.map(function(s){return{id:s.id,name:s.name};}),
+    categories:CATEGORIES,
+    storages:STORAGES,
     transactions:txLog,
+    archive:archive,
+    orderedItems:orderedItems,
+    employees:employees,
     settings:{
       apiEndpoint:apiEndpoint,
       apiConnected:apiConnected,
@@ -1164,7 +1177,7 @@ function exportAppState() {
   var blob=new Blob([json],{type:"application/json"});
   var url=URL.createObjectURL(blob);
   var a=document.createElement("a");
-  a.href=url;a.download="inventory_state_"+new Date().toISOString().slice(0,10)+".json";
+  a.href=url;a.download="inventory_backup_"+new Date().toISOString().slice(0,10)+".json";
   document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 }
 
@@ -1174,14 +1187,18 @@ function importAppState(input) {
   reader.onload=function(e){
     try{
       var state=JSON.parse(e.target.result);
-      if(!state.version||!state.items){alert("Invalid state file");return;}
-      // Merge items
-      for(var c in state.items){
-        if(ITEMS_DB[c]) ITEMS_DB[c]=state.items[c];
-      }
+      if(!state.items){alert("Invalid backup file — no items found");return;}
+      if(!confirm("Restore from backup?\n\nThis will REPLACE all current data:\n• "+Object.keys(state.items).length+" categories\n• "+(state.transactions?state.transactions.length:0)+" transactions\n\nCurrent data will be overwritten.")) return;
+      if(state.items) ITEMS_DB=state.items;
+      if(state.categories) CATEGORIES=state.categories;
+      if(state.storages) STORAGES=state.storages;
       if(state.transactions) txLog=state.transactions;
+      if(state.archive) {archive=state.archive;try{localStorage.setItem("invArchive",JSON.stringify(archive));}catch(ex){}}
+      if(state.orderedItems) {orderedItems=state.orderedItems;try{localStorage.setItem("invOrdered",JSON.stringify(orderedItems));}catch(ex){}}
+      if(state.employees) {employees=state.employees;try{localStorage.setItem("invEmployees",JSON.stringify(employees));}catch(ex){}}
+      saveData();
       showModal="success";render();setTimeout(function(){showModal="";render();},1200);
-    }catch(err){alert("Error: "+err.message);}
+    }catch(err){alert("Import error: "+err.message);}
   };reader.readAsText(input.files[0]);
 }
 
@@ -1240,9 +1257,9 @@ function catImg(cat, sz) {
 }
 function now() { var d=new Date(); return d.toLocaleDateString("en-GB")+" "+d.toLocaleTimeString("en-GB",{hour:"2-digit",minute:"2-digit",second:"2-digit"}); }
 function modeBadge() {
-  if(mode==="in") return '<span class="badge badge-in">Stock In</span>';
-  if(mode==="out") return '<span class="badge badge-out">Stock Out</span>';
-  if(mode==="count") return '<span class="badge badge-count">Count</span>';
+  if(mode==="in") return '<span class="badge badge-in">Goods Receipt</span>';
+  if(mode==="out") return '<span class="badge badge-out">Goods Issue</span>';
+  if(mode==="count") return '<span class="badge badge-count">Physical Inventory</span>';
   return '';
 }
 function totalStock() {
@@ -1316,8 +1333,27 @@ function confirmQty() {
   var activeName=selSub?(selItem.name+' — '+selSub.name):selItem.name;
   if(mode==="out"&&q>activeItem.stock){showModal="overstock";render();return;}
   if(mode==="out"){activeItem.stock=activeItem.stock-q;activeItem.lastOut=nowShort();if(!selSub)selItem.lastOut=nowShort();}
-  else if(mode==="in"){activeItem.stock+=q;activeItem.lastIn=nowShort();if(!selSub)selItem.lastIn=nowShort();}
-  var _txEntry={item:activeName,mode:mode,qty:q,unit:activeUnit,storage:storage?storage.name:"",time:now(),reason:mode==="out"?stockOutReason:""};
+  else if(mode==="in"){activeItem.stock+=q;activeItem.lastIn=nowShort();if(!selSub)selItem.lastIn=nowShort();
+    // Auto-update order tracking when stock received
+    var _itemId=activeItem.id||selItem.id||"";
+    if(_itemId&&orderedItems[_itemId]){
+      var _rop=activeItem.alertLow||selItem.alertLow||15;
+      if(activeItem.stock>=_rop) {
+        // Stock above reorder point — clear order tracking
+        delete orderedItems[_itemId];
+      } else if(orderedItems[_itemId].qtyOrdered>0) {
+        // Partial receipt — update received qty
+        orderedItems[_itemId].qtyReceived=(orderedItems[_itemId].qtyReceived||0)+q;
+        if(orderedItems[_itemId].qtyReceived>=orderedItems[_itemId].qtyOrdered) {
+          orderedItems[_itemId].status="ordered"; // fully received but still low
+        } else {
+          orderedItems[_itemId].status="partial";
+        }
+      }
+      try{localStorage.setItem("invOrdered",JSON.stringify(orderedItems));}catch(e){}
+    }
+  }
+  var _txEntry={item:activeName,mode:mode,qty:q,unit:activeUnit,storage:storage?storage.name:"",time:now(),reason:mode==="out"?stockOutReason:"",user:currentUser||""};
   txLog.push(_txEntry);
   var _realCat=selItemCat||selCat;
   archivePush({item:activeName,itemId:activeItem.id||selItem.id||"",sku:activeItem.sku||selItem.sku||"",cat:_realCat?_realCat.name:"",mode:mode,qty:q,unit:activeUnit,price:activePrice,total:q*activePrice,storage:storage?storage.name:"",reason:mode==="out"?stockOutReason:"",stockAfter:activeItem.stock});
@@ -1338,7 +1374,7 @@ function saveCount() {
   for(var k in countChanges){var sep=k.lastIndexOf("|");var ci=k.substring(0,sep),idx=parseInt(k.substring(sep+1));
     var _oldStock=ITEMS_DB[ci][idx].stock;
     ITEMS_DB[ci][idx].stock=countChanges[k];
-    txLog.push({item:ITEMS_DB[ci][idx].name,mode:"count",qty:countChanges[k],unit:ITEMS_DB[ci][idx].unit,storage:storage?storage.name:"",time:now()});
+    txLog.push({item:ITEMS_DB[ci][idx].name,mode:"count",qty:countChanges[k],unit:ITEMS_DB[ci][idx].unit,storage:storage?storage.name:"",time:now(),user:currentUser||""});
     archivePush({item:ITEMS_DB[ci][idx].name,itemId:ITEMS_DB[ci][idx].id||"",cat:"",mode:"count",qty:countChanges[k],unit:ITEMS_DB[ci][idx].unit,price:0,total:0,storage:storage?storage.name:"",reason:"count adj (was "+_oldStock+")",stockAfter:countChanges[k]});
   }
   countChanges={};saveData();showModal="success";render();setTimeout(function(){showModal="";render();},1200);
@@ -1703,10 +1739,10 @@ function renderImportModal(){
   if(!importPreviewData) return "";
   var d=importPreviewData;
   var h='<div class="modal-overlay" onclick="showModal=\'\';importPreviewData=null;render()"><div class="modal-card" style="max-width:600px;max-height:90vh;overflow-y:auto" onclick="event.stopPropagation()">';
-  h+='<div class="modal-title">\uD83D\uDCE5 Import Products from File</div>';
+  h+='<div class="modal-title">\uD83D\uDCE5 Catalog Import</div>';
   h+='<div style="padding:8px 12px;border-radius:10px;background:rgba(88,166,255,0.06);color:#58a6ff;font-size:12px;margin-bottom:16px">';
   h+='Found <b>'+d.rows.length+'</b> products with <b>'+d.headers.length+'</b> columns</div>';
-  h+='<div style="text-align:right;margin-bottom:8px"><button onclick="downloadImportTemplate()" style="padding:4px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.03);color:#8b949e;font-size:10px;cursor:pointer">\uD83D\uDCCB Download CSV template</button></div>';
+  h+='<div style="text-align:right;margin-bottom:8px"><button onclick="downloadImportTemplate()" style="padding:4px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.03);color:#8b949e;font-size:10px;cursor:pointer">\uD83D\uDCCB Download Import Template</button></div>';
 
   // Column mapping
   h+='<div class="edit-section"><div class="edit-section-title">\uD83D\uDD17 Column Mapping</div>';
@@ -2034,7 +2070,7 @@ function renderAddProductModal(){
 
   // Buttons
   h+='<div class="btn-row" style="margin-top:20px"><button class="btn-cancel" onclick="closeAddProduct()">Cancel</button>';
-  h+='<button class="btn-save" onclick="saveAdminNewItem()">\u2705 Add Product</button></div>';
+  h+='<button class="btn-save" onclick="saveAdminNewItem()">\u2705 Add to Catalog</button></div>';
   h+='</div></div>';
   return h;
 }
@@ -2580,7 +2616,7 @@ function updateScanQty(i,v){scanResults[i].qty=parseFloat(v)||0;render();}
 function confirmScanResults(){
   var added=0;for(var i=0;i<scanResults.length;i++){var r=scanResults[i];if(!r.include||r.qty<=0||!r.matchedItem)continue;
     r.matchedItem.stock+=r.qty;r.matchedItem.lastIn=nowShort();
-    txLog.push({item:r.matchedItem.name,mode:"in",qty:r.qty,unit:r.matchedItem.unit,storage:storage?storage.name:"",time:now(),source:"invoice"});
+    txLog.push({item:r.matchedItem.name,mode:"in",qty:r.qty,unit:r.matchedItem.unit,storage:storage?storage.name:"",time:now(),source:"invoice",user:currentUser||""});
     archivePush({item:r.matchedItem.name,itemId:r.matchedItem.id||"",cat:"",mode:"in",qty:r.qty,unit:r.matchedItem.unit,price:r.matchedItem.price||0,total:r.qty*(r.matchedItem.price||0),storage:storage?storage.name:"",reason:"invoice",stockAfter:r.matchedItem.stock});
     added++;}
   saveData();scanState="idle";showModal="success";render();setTimeout(function(){showModal="";screen="storage";render();},1500);
@@ -2617,6 +2653,7 @@ function renderApp() {
   var h = renderCurrent();
   if(showModal==="success") h+=renderSuccess();
   if(showModal==="overstock") h+=renderOverstock();
+  if(showModal==="order") h+=renderOrderModal();
   if(showModal==="add") h+=renderAddModal();
   if(showModal==="delete") h+=renderDeleteModal();
   if(showModal==="edit") h+=renderEditModal();
@@ -2653,6 +2690,7 @@ function renderCurrent() {
   if(screen==="countsheet") return renderCountSheet();
   if(screen==="itemhistory") return renderItemHistory();
   if(screen==="templog") return renderTempLog();
+  if(screen==="userselect") return renderUserSelect();
   return renderMain();
 }
 
@@ -2668,11 +2706,12 @@ function renderHeader(title, sub) {
   var alertTotal=getTotalAlertCount();
   if(screen==="main"&&alertTotal>0){h+='<button class="icon-btn" onclick="alertFilter=\'all\';screen=\'alerts\';render()" title="Alerts" style="position:relative">\uD83D\uDD14<span class="alert-badge">'+alertTotal+'</span></button>';}
   if(isAdmin) h+='<button class="icon-btn" onclick="logout()" title="Lock">\uD83D\uDD12</button>';
+  if(currentUser) h+='<button style="padding:3px 8px;border-radius:8px;font-size:10px;font-weight:600;border:1px solid rgba(88,166,255,0.2);background:rgba(88,166,255,0.06);color:#58a6ff;cursor:pointer" onclick="screen=\'userselect\';render()" title="Switch User">\uD83D\uDC64 '+currentUser+'</button>';
   h+='<div class="online-dot"></div></div></div>';
   // Breadcrumb navigation bar
   if(screen!=="main") {
     var crumbs=[];
-    var modeLabel=mode==="in"?"\uD83D\uDCE5 Stock In":mode==="out"?"\uD83D\uDCE4 Stock Out":mode==="count"?"\uD83D\uDCCB Count":mode==="admin"?"\u2699\uFE0F Admin":"";
+    var modeLabel=mode==="in"?"\uD83D\uDCE5 Goods Receipt":mode==="out"?"\uD83D\uDCE4 Goods Issue":mode==="count"?"\uD83D\uDCCB Physical Inventory":mode==="admin"?"\u2699\uFE0F Administration":"";
     if(modeLabel) crumbs.push(modeLabel);
     if(storage&&(screen==="categories"||screen==="items"||screen==="variants"||screen==="qty"||screen==="count")) crumbs.push(storage.icon+" "+storage.name);
     if(selCat&&selCat.id!=="__all__"&&(screen==="items"||screen==="variants"||screen==="qty")) crumbs.push(selCat.emoji+" "+selCat.name);
@@ -2692,7 +2731,7 @@ function renderHeader(title, sub) {
 }
 
 function renderMain() {
-  var h=renderHeader("Smart Inventory","");
+  var h=renderHeader("Inventory Control","");
   var ts=totalStock(),tv=totalValue(),lsc=lowStockCount();
   var zeroN=getZeroCount(),lowN=getLowCount();
   h+='<div class="main-wrap">';
@@ -2701,30 +2740,45 @@ function renderMain() {
   var d=new Date();var hrs=d.getHours();
   var greeting=hrs<12?"Good Morning":hrs<17?"Good Afternoon":"Good Evening";
   var timeStr=d.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
-  h+='<div class="main-hero"><div class="main-hero-left"><div class="main-hero-title">'+greeting+' \uD83D\uDC4B</div>';
+  h+='<div class="main-hero"><div class="main-hero-left"><div class="main-hero-title">'+greeting+(currentUser?', '+currentUser:'')+' \uD83D\uDC4B</div>';
   h+='<div class="main-hero-sub">'+d.toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric"})+'</div></div>';
   h+='<div class="main-hero-time">'+timeStr+'</div></div>';
 
+  // User identification prompt
+  if(!currentUser){
+    h+='<div style="padding:10px 14px;border-radius:12px;background:rgba(88,166,255,0.06);border:1px solid rgba(88,166,255,0.15);display:flex;align-items:center;gap:10px;margin-bottom:8px;cursor:pointer" onclick="screen=\'userselect\';render()">';
+    h+='<span style="font-size:20px">\uD83D\uDC64</span>';
+    h+='<div style="flex:1"><div style="font-size:12px;font-weight:600;color:#58a6ff">Identify Yourself</div>';
+    h+='<div style="font-size:10px;color:#8b949e">Tap to select your name — all actions will be logged under your ID</div></div>';
+    h+='<span style="color:#58a6ff">\u203A</span></div>';
+  }
+
   // ── Stats row ──
   h+='<div class="stats-row">';
-  h+='<div class="stat-box"><div class="stat-val mono" style="color:#58a6ff">'+ts+'</div><div class="stat-lbl">Items</div></div>';
-  h+='<div class="stat-box"><div class="stat-val mono" style="color:#3fb950">$'+tv.toFixed(0)+'</div><div class="stat-lbl">Value</div></div>';
-  h+='<div class="stat-box"><div class="stat-val mono" style="color:'+(lsc>0?"#f85149":"#3fb950")+'">'+lsc+'</div><div class="stat-lbl">Low Stock</div></div>';
-  h+='<div class="stat-box"><div class="stat-val mono" style="color:#a78bfa">'+txLog.length+'</div><div class="stat-lbl">Actions</div></div>';
+  h+='<div class="stat-box"><div class="stat-val mono" style="color:#58a6ff">'+ts+'</div><div class="stat-lbl">On-Hand Units</div></div>';
+  h+='<div class="stat-box"><div class="stat-val mono" style="color:#3fb950">$'+tv.toFixed(0)+'</div><div class="stat-lbl">Inventory Value</div></div>';
+  h+='<div class="stat-box"><div class="stat-val mono" style="color:'+(lsc>0?"#f85149":"#3fb950")+'">'+lsc+'</div><div class="stat-lbl">Below ROP</div></div>';
+  h+='<div class="stat-box"><div class="stat-val mono" style="color:#a78bfa">'+txLog.length+'</div><div class="stat-lbl">Transactions</div></div>';
   h+='</div>';
 
   // ── Alert banners (compact) ──
-  if(zeroN>0||lowN>0) {
+  var ordN=Object.keys(orderedItems).length;
+  if(zeroN>0||lowN>0||ordN>0) {
     h+='<div class="alert-row">';
     if(zeroN>0) {
       h+='<div class="alert-mini" style="background:rgba(248,81,73,0.08);border:1px solid rgba(248,81,73,0.2)" onclick="alertFilter=\'zero\';screen=\'alerts\';render()">';
-      h+='<div class="alert-mini-icon">\u26D4</div><div class="alert-mini-txt" style="color:#f85149">Out of Stock</div>';
+      h+='<div class="alert-mini-icon">\u26D4</div><div class="alert-mini-txt" style="color:#f85149">Stockout</div>';
       h+='<div class="alert-mini-n" style="color:#f85149">'+zeroN+'</div></div>';
     }
     if(lowN>0) {
       h+='<div class="alert-mini" style="background:rgba(210,153,34,0.08);border:1px solid rgba(210,153,34,0.2)" onclick="alertFilter=\'low\';screen=\'alerts\';render()">';
-      h+='<div class="alert-mini-icon">\u26A0\uFE0F</div><div class="alert-mini-txt" style="color:#d29922">Low Stock</div>';
+      h+='<div class="alert-mini-icon">\u26A0\uFE0F</div><div class="alert-mini-txt" style="color:#d29922">Below ROP</div>';
       h+='<div class="alert-mini-n" style="color:#d29922">'+lowN+'</div></div>';
+    }
+    if(ordN>0) {
+      h+='<div class="alert-mini" style="background:rgba(63,185,80,0.08);border:1px solid rgba(63,185,80,0.2)" onclick="alertFilter=\'ordered\';screen=\'alerts\';render()">';
+      h+='<div class="alert-mini-icon">\u2705</div><div class="alert-mini-txt" style="color:#3fb950">On Order</div>';
+      h+='<div class="alert-mini-n" style="color:#3fb950">'+ordN+'</div></div>';
     }
     h+='</div>';
   }
@@ -2735,40 +2789,40 @@ function renderMain() {
   h+='<div class="action-card" style="background:linear-gradient(145deg,rgba(63,185,80,0.1),rgba(63,185,80,0.02));border-color:rgba(63,185,80,0.2)" onclick="setMode(\'in\')">';
   h+='<div class="action-card-glow" style="background:#3fb950"></div>';
   h+='<div class="action-card-icon">\uD83D\uDCE5</div>';
-  h+='<div class="action-card-title" style="color:#3fb950">Stock In</div>';
-  h+='<div class="action-card-sub">Deliveries & receiving</div></div>';
+  h+='<div class="action-card-title" style="color:#3fb950">Goods Receipt</div>';
+  h+='<div class="action-card-sub">Purchase orders, deliveries & returns</div></div>';
   // Stock Out
   h+='<div class="action-card" style="background:linear-gradient(145deg,rgba(248,81,73,0.1),rgba(248,81,73,0.02));border-color:rgba(248,81,73,0.2)" onclick="setMode(\'out\')">';
   h+='<div class="action-card-glow" style="background:#f85149"></div>';
   h+='<div class="action-card-icon">\uD83D\uDCE4</div>';
-  h+='<div class="action-card-title" style="color:#f85149">Stock Out</div>';
-  h+='<div class="action-card-sub">Usage, prep & waste</div></div>';
+  h+='<div class="action-card-title" style="color:#f85149">Goods Issue</div>';
+  h+='<div class="action-card-sub">Consumption, prep, waste & spoilage</div></div>';
   // Inventory Count
   h+='<div class="action-card" style="background:linear-gradient(145deg,rgba(88,166,255,0.1),rgba(88,166,255,0.02));border-color:rgba(88,166,255,0.2)" onclick="setMode(\'count\')">';
   h+='<div class="action-card-glow" style="background:#58a6ff"></div>';
   h+='<div class="action-card-icon">\uD83D\uDCCB</div>';
-  h+='<div class="action-card-title" style="color:#58a6ff">Count</div>';
-  h+='<div class="action-card-sub">Physical inventory check</div></div>';
+  h+='<div class="action-card-title" style="color:#58a6ff">Physical Inventory</div>';
+  h+='<div class="action-card-sub">Cycle count & stock verification</div></div>';
   // Admin
   h+='<div class="action-card" style="background:linear-gradient(145deg,rgba(139,92,246,0.1),rgba(139,92,246,0.02));border-color:rgba(139,92,246,0.2)" onclick="setMode(\'admin\')">';
   h+='<div class="action-card-glow" style="background:#8b5cf6"></div>';
   h+='<div class="action-card-icon">\u2699\uFE0F</div>';
-  h+='<div class="action-card-title" style="color:#a78bfa">Admin</div>';
-  h+='<div class="action-card-sub">Dashboard & settings</div></div>';
+  h+='<div class="action-card-title" style="color:#a78bfa">Administration</div>';
+  h+='<div class="action-card-sub">Catalog, reports & configuration</div></div>';
   h+='</div>';
 
   // ── Tools strip ──
   h+='<div class="tools-strip">';
-  h+='<div class="tool-chip" onclick="screen=\'transfer\';transferFrom=null;transferTo=null;render()"><span class="tool-chip-icon">\uD83D\uDD04</span>Transfer</div>';
-  h+='<div class="tool-chip" onclick="screen=\'countsheet\';countSheetMode=\'\';countSheetLoc=null;render()"><span class="tool-chip-icon">\uD83D\uDCCB</span>Count Sheet</div>';
-  h+='<div class="tool-chip" onclick="screen=\'templog\';render()"><span class="tool-chip-icon">\uD83C\uDF21\uFE0F</span>Temperature</div>';
-  h+='<div class="tool-chip" onclick="openGlobalSearch()"><span class="tool-chip-icon">\uD83D\uDD0D</span>Search All</div>';
-  if(isAdmin) h+='<div class="tool-chip" onclick="adminTab=\'variance\';screen=\'admin\';render()"><span class="tool-chip-icon">\uD83D\uDCCA</span>Variance</div>';
+  h+='<div class="tool-chip" onclick="screen=\'transfer\';transferFrom=null;transferTo=null;render()"><span class="tool-chip-icon">\uD83D\uDD04</span>Inter-Location Transfer</div>';
+  h+='<div class="tool-chip" onclick="screen=\'countsheet\';countSheetMode=\'\';countSheetLoc=null;render()"><span class="tool-chip-icon">\uD83D\uDCCB</span>Count Sheets</div>';
+  h+='<div class="tool-chip" onclick="screen=\'templog\';render()"><span class="tool-chip-icon">\uD83C\uDF21\uFE0F</span>Temperature Log</div>';
+  h+='<div class="tool-chip" onclick="openGlobalSearch()"><span class="tool-chip-icon">\uD83D\uDD0D</span>Product Lookup</div>';
+  if(isAdmin) h+='<div class="tool-chip" onclick="adminTab=\'variance\';screen=\'admin\';render()"><span class="tool-chip-icon">\uD83D\uDCCA</span>Variance Analysis</div>';
   h+='</div>';
 
   // ── Recent items ──
   if(lastUsedItems.length>0){
-    h+='<div class="recent-bar"><div class="recent-bar-title">\u26A1 Recently Used</div>';
+    h+='<div class="recent-bar"><div class="recent-bar-title">\u26A1 Recent Items</div>';
     h+='<div class="recent-chips">';
     for(var ri=0;ri<Math.min(lastUsedItems.length,8);ri++){var rIt=lastUsedItems[ri];
       h+='<div class="recent-chip" onclick="quickRepeat(\''+rIt.catId+'\',\''+rIt.itemId+'\')">';
@@ -2787,14 +2841,14 @@ function renderMain() {
   return h;
 }
 function renderStockInMethod() {
-  var h=renderHeader("Stock In","Select method");
+  var h=renderHeader("Goods Receipt","Select receiving method");
   h+='<div class="main-menu">';
   h+='<button class="menu-card" style="background:rgba(255,255,255,0.02);border-color:rgba(255,255,255,0.06);--card-bg:rgba(10,14,19,0.9)" onclick="screen=\'storage\';render()">';
-  h+='<div class="menu-card-body"><div class="menu-card-icon">\u270D\uFE0F</div><div class="menu-card-title">Manual Entry</div><div class="menu-card-sub">Add items one by one</div></div></button>';
+  h+='<div class="menu-card-body"><div class="menu-card-icon">\u270D\uFE0F</div><div class="menu-card-title">Manual Entry</div><div class="menu-card-sub">Select items and enter quantities</div></div></button>';
   h+='<button class="menu-card" style="background:rgba(255,255,255,0.02);border-color:rgba(255,255,255,0.06);--card-bg:rgba(10,14,19,0.9)" onclick="openInvoice()">';
-  h+='<div class="menu-card-body"><div class="menu-card-icon">\uD83D\uDCF7</div><div class="menu-card-title">Scan Invoice</div><div class="menu-card-sub">Photo delivery invoice for auto-detect</div></div></button>';
+  h+='<div class="menu-card-body"><div class="menu-card-icon">\uD83D\uDCF7</div><div class="menu-card-title">Invoice / Delivery Note</div><div class="menu-card-sub">Scan document for auto-detection (OCR)</div></div></button>';
   h+='<button class="menu-card" style="background:rgba(255,255,255,0.02);border-color:rgba(88,166,255,0.15);--card-bg:rgba(10,14,19,0.9)" onclick="startBarcodeScan()">';
-  h+='<div class="menu-card-body"><div class="menu-card-icon">\uD83D\uDCF2</div><div class="menu-card-title">Scan Barcode</div><div class="menu-card-sub">Scan product barcode with camera</div></div></button>';
+  h+='<div class="menu-card-body"><div class="menu-card-icon">\uD83D\uDCF2</div><div class="menu-card-title">Barcode Scan</div><div class="menu-card-sub">Scan product barcode with camera</div></div></button>';
   h+='</div>';
   return h;
 }
@@ -2804,14 +2858,14 @@ function renderScannerStatusBar() {
   var h='<div style="padding:4px 16px;max-width:700px;margin:0 auto">';
   h+='<div class="scanner-status-bar active">';
   h+='<div class="scanner-pulse"></div>';
-  h+='\uD83D\uDCF2 External scanner ready';
+  h+='\uD83D\uDCF2 Barcode scanner active';
   if(extScannerLastHit) h+='<span style="margin-left:auto;font-size:10px;color:#8b949e;font-family:monospace">Last: '+extScannerLastHit+'</span>';
   h+='</div></div>';
   return h;
 }
 
 function renderStorage() {
-  var h=renderHeader("Select Storage",mode==="in"?"Where to store?":mode==="out"?"Taking from?":"Counting in");
+  var h=renderHeader("Storage Location",mode==="in"?"Goods receipt destination":mode==="out"?"Issue from location":mode==="count"?"Count location":"Select area");
   if(mode==="in"||mode==="out") h+=renderScannerStatusBar();
   h+='<div class="storage-grid">';
   // ALL locations button
@@ -2834,7 +2888,7 @@ function renderStorage() {
 }
 
 function renderCategories() {
-  var h=renderHeader("Categories",storage?storage.icon+" "+storage.name:"All Locations");
+  var h=renderHeader("Product Category",storage?storage.icon+" "+storage.name:"All Locations");
   h+='<div class="cat-grid">';
   // ALL button
   h+='<button class="cat-card" style="background:linear-gradient(145deg,rgba(88,166,255,0.15),rgba(88,166,255,0.05));border-color:rgba(88,166,255,0.3)" onclick="setCatAll()">';
@@ -2850,7 +2904,7 @@ function renderCategories() {
 }
 
 function renderItems() {
-  var h=renderHeader(selCat?selCat.name:"Items",storage?storage.name:"All Locations");
+  var h=renderHeader(selCat?selCat.name:"Product Selection",storage?storage.name:"All Locations");
   if(mode==="in"||mode==="out") h+=renderScannerStatusBar();
   var items=filteredItems(selCat.id);
   // Search bar
@@ -2892,6 +2946,14 @@ function renderItems() {
     if(it.nameEs) h+='<div class="tile-name-es">'+it.nameEs+'</div>';
     if(selCat&&selCat.id==="__all__"&&it._catEmoji) h+='<div style="font-size:7px;text-align:center;color:#8b949e;padding:0 2px">'+it._catEmoji+' '+it._catName+'</div>';
     if(it.sku) h+='<div style="font-size:7px;color:#58a6ff;text-align:center;font-family:monospace;letter-spacing:0.03em;opacity:0.7">'+it.sku+'</div>';
+    // Ordered badge for low/zero stock
+    if(tileStock<=(it.alertLow||15)){
+      var _tOrd=orderedItems[it.id];var _tSt=_tOrd?(_tOrd.status||"ordered"):"none";
+      var _tCol=_tSt==="ordered"?"#3fb950":_tSt==="partial"?"#d29922":"#f85149";
+      var _tLbl=_tSt==="ordered"?"\u2705 Ordered":_tSt==="partial"?"\uD83D\uDE9A Partial":"\u23F3 Order?";
+      h+='<div style="text-align:center;padding:1px 0" onclick="event.stopPropagation()">';
+      h+='<button style="display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:6px;background:'+_tCol+'15;border:1px solid '+_tCol+'33;cursor:pointer;font-size:7px;font-weight:700;color:'+_tCol+'" onclick="openOrderModal(\''+it.id+'\',\''+it.name.replace(/'/g,"\\'")+'\',\''+it.unit+'\')">'+_tLbl+'</button></div>';
+    }
     // Timestamps
     if(it.lastIn||it.lastOut){
       h+='<div class="tile-ts">';
@@ -2910,7 +2972,7 @@ function renderItems() {
 }
 
 function renderVariants() {
-  var h=renderHeader(selItem?selItem.name:'Variants','Select Size');
+  var h=renderHeader(selItem?selItem.name:'Variants','Select Size / Pack Variant');
   h+='<div style="max-width:440px;margin:0 auto;padding:12px">';
   // Parent product info
   h+='<div style="display:flex;align-items:center;gap:12px;padding:14px;border-radius:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);margin-bottom:16px">';
@@ -2950,7 +3012,7 @@ function renderVariants() {
 }
 
 function renderQty() {
-  var h=renderHeader(selItem?selItem.name:"Qty","");
+  var h=renderHeader(selItem?selItem.name:"Quantity Entry","");
   var activeItem=selSub||selItem;
   var activeUnit=selSub?(selSub.unit||selItem.unit):selItem.unit;
   var activeStock=activeItem.stock;
@@ -2960,18 +3022,30 @@ function renderQty() {
   if(selSub) h+='<div style="font-size:13px;color:#58a6ff;font-weight:600">\u25B8 '+selSub.name+'</div>';
   if(selItem.nameEs) h+='<div class="item-name-es">'+selItem.nameEs+'</div>';
   h+='<div style="font-size:11px;color:#8b949e">'+((selItemCat||selCat)?(selItemCat||selCat).name:"")+" \u00B7 "+(storage?storage.name:"All")+'</div></div></div>';
+  // Ordered status for low stock items
+  var _qItemId=activeItem.id||selItem.id||"";
+  if(activeStock<=(activeItem.alertLow||selItem.alertLow||15)&&_qItemId){
+    var _qOrd=orderedItems[_qItemId];var _qSt=_qOrd?(_qOrd.status||"ordered"):"none";
+    var _qCol=_qSt==="ordered"?"#3fb950":_qSt==="partial"?"#d29922":"#f85149";
+    var _qLbl=_qSt==="ordered"?"\u2705 Ordered":_qSt==="partial"?"\uD83D\uDE9A Partial Delivery":"\u23F3 Not Ordered";
+    h+='<button style="display:flex;align-items:center;justify-content:center;gap:6px;padding:6px 14px;margin:0 auto 4px;border-radius:10px;background:'+_qCol+'12;border:1px solid '+_qCol+'25;cursor:pointer" onclick="openOrderModal(\''+_qItemId+'\',\''+selItem.name.replace(/'/g,"\\'")+'\',\''+activeUnit+'\')">';
+    h+='<span style="font-size:11px;font-weight:600;color:'+_qCol+'">'+_qLbl+'</span>';
+    if(_qOrd&&_qOrd.supplier) h+='<span style="font-size:9px;color:#8b949e">\u00B7 '+_qOrd.supplier+'</span>';
+    if(_qOrd&&_qOrd.qtyOrdered) h+='<span style="font-size:9px;color:#484f58">'+(_qOrd.qtyReceived||0)+'/'+_qOrd.qtyOrdered+'</span>';
+    h+='</button>';
+  }
   h+='<div class="qty-tabs">';
-  h+='<button class="qty-tab'+(qtyMode==="pcs"?" active":"")+'" onclick="qtyMode=\'pcs\';quantity=\'\';render()">\uD83D\uDD22 Units</button>';
-  h+='<button class="qty-tab'+(qtyMode==="weight"?" active":"")+'" onclick="qtyMode=\'weight\';quantity=\'\';render()">\u2696\uFE0F Weight</button></div>';
+  h+='<button class="qty-tab'+(qtyMode==="pcs"?" active":"")+'" onclick="qtyMode=\'pcs\';quantity=\'\';render()">\uD83D\uDD22 Unit Count</button>';
+  h+='<button class="qty-tab'+(qtyMode==="weight"?" active":"")+'" onclick="qtyMode=\'weight\';quantity=\'\';render()">\u2696\uFE0F Weight Entry</button></div>';
   // Keyboard input field
   h+='<div style="text-align:center;margin:12px 0">';
   h+='<input class="qty-keyboard-input" id="qty-kb" type="number" inputmode="decimal" step="any" placeholder="0" value="'+quantity+'" oninput="quantity=this.value;renderQtyDisplay()" autofocus>';
   h+='<div class="qty-unit-label">'+(activeUnit)+'</div>';
   if(mode==="out") {
-    h+='<div style="text-align:center;margin-top:8px;font-size:12px;color:#8b949e">Available: <strong class="mono" style="color:#58a6ff;font-size:14px">'+activeStock+'</strong> '+activeUnit+'</div>';
-    h+='<div style="text-align:center;margin-top:8px"><div style="font-size:10px;font-weight:600;color:#484f58;text-transform:uppercase;margin-bottom:4px">Reason</div>';
+    h+='<div style="text-align:center;margin-top:8px;font-size:12px;color:#8b949e">Available Stock: <strong class="mono" style="color:#58a6ff;font-size:14px">'+activeStock+'</strong> '+activeUnit+'</div>';
+    h+='<div style="text-align:center;margin-top:8px"><div style="font-size:10px;font-weight:600;color:#484f58;text-transform:uppercase;margin-bottom:4px">Issue Reason</div>';
     h+='<div class="reason-pills" style="justify-content:center">';
-    var reasons=[["used","\uD83C\uDF73 Used"],["prep","\uD83D\uDD2A Prep"],["waste","\uD83D\uDDD1 Waste"],["spoiled","\u26A0\uFE0F Spoiled"],["returned","\u21A9\uFE0F Returned"]];
+    var reasons=[["used","\uD83C\uDF73 Consumption"],["prep","\uD83D\uDD2A Prep / Mise en Place"],["waste","\uD83D\uDDD1 Waste / Shrinkage"],["spoiled","\u26A0\uFE0F Spoilage / Expired"],["returned","\u21A9\uFE0F Vendor Return"]];
     for(var ri=0;ri<reasons.length;ri++){h+='<button class="reason-pill'+(stockOutReason===reasons[ri][0]?" active":"")+'" onclick="stockOutReason=\''+reasons[ri][0]+'\';render()">'+reasons[ri][1]+'</button>';}
     h+='</div></div>';
   }
@@ -2984,7 +3058,7 @@ function renderQty() {
   h+='<div style="display:flex;gap:6px;margin-top:10px">';
   h+='<button class="num-btn" style="flex:1;font-size:13px" onclick="quantity=\'\';document.getElementById(\'qty-kb\').value=\'\';render()">Clear</button>';
   var bc=mode==="in"?"green":mode==="out"?"red":"blue";
-  var bl=mode==="in"?"\u2705 Add Stock":mode==="out"?"\uD83D\uDCE4 Remove":"\u2705 Confirm";
+  var bl=mode==="in"?"\u2705 Post Receipt":mode==="out"?"\uD83D\uDCE4 Post Issue":"\u2705 Confirm";
   h+='<button class="confirm-btn '+bc+'" style="flex:2" onclick="confirmQty()">'+bl+'</button></div>';
   h+='<div class="timestamp">\uD83D\uDD52 '+now()+'</div>';
   h+='</div>';
@@ -2996,19 +3070,32 @@ function renderQtyDisplay(){var el=document.getElementById("qty-kb");if(el)quant
 function renderAlerts() {
   var alerts=getAlerts();
   var zeroN=getZeroCount(),lowN=getLowCount();
-  var h=renderHeader('Stock Alerts','\u26A0\uFE0F '+alerts.length+' items need attention');
+  var h=renderHeader('Reorder & Stockout Alerts','\u26A0\uFE0F '+alerts.length+' items need attention');
 
   // Filter tabs
   h+='<div class="alert-filter-bar">';
   h+='<button class="alert-filter'+(alertFilter==="all"?" active":"")+'" onclick="alertFilter=\'all\';render()" style="'+(alertFilter==="all"?"border-color:rgba(248,81,73,0.4);background:rgba(248,81,73,0.1);color:#f85149":"")+'">All ('+alerts.length+')</button>';
   h+='<button class="alert-filter'+(alertFilter==="zero"?" active":"")+'" onclick="alertFilter=\'zero\';render()" style="'+(alertFilter==="zero"?"border-color:rgba(248,81,73,0.4);background:rgba(248,81,73,0.1);color:#f85149":"")+'">'+'\u26D4 Out of Stock ('+zeroN+')</button>';
-  h+='<button class="alert-filter'+(alertFilter==="low"?" active":"")+'" onclick="alertFilter=\'low\';render()" style="'+(alertFilter==="low"?"border-color:rgba(210,153,34,0.4);background:rgba(210,153,34,0.1);color:#d29922":"")+'">'+'\u26A0\uFE0F Low ('+lowN+')</button>';
+  h+='<button class="alert-filter'+(alertFilter==="low"?" active":"")+'" onclick="alertFilter=\'low\';render()" style="'+(alertFilter==="low"?"border-color:rgba(210,153,34,0.4);background:rgba(210,153,34,0.1);color:#d29922":"")+'">'+'\u26A0\uFE0F Below Reorder Point ('+lowN+')</button>';
+  var orderedN=0,partialN=0,pendingN=0;
+  for(var oi=0;oi<alerts.length;oi++){
+    var _o=orderedItems[alerts[oi].item.id];
+    if(_o&&_o.status==="partial") partialN++;
+    else if(_o&&(_o.status==="ordered"||!_o.status)) orderedN++;
+    else pendingN++;
+  }
+  h+='<button class="alert-filter'+(alertFilter==="ordered"?" active":"")+'" onclick="alertFilter=\'ordered\';render()" style="'+(alertFilter==="ordered"?"border-color:rgba(63,185,80,0.4);background:rgba(63,185,80,0.1);color:#3fb950":"")+'">\uD83D\uDCE6 On Order ('+orderedN+')</button>';
+  h+='<button class="alert-filter'+(alertFilter==="partial"?" active":"")+'" onclick="alertFilter=\'partial\';render()" style="'+(alertFilter==="partial"?"border-color:rgba(210,153,34,0.4);background:rgba(210,153,34,0.1);color:#d29922":"")+'">\uD83D\uDE9A Partial ('+partialN+')</button>';
+  h+='<button class="alert-filter'+(alertFilter==="pending"?" active":"")+'" onclick="alertFilter=\'pending\';render()" style="'+(alertFilter==="pending"?"border-color:rgba(139,92,246,0.4);background:rgba(139,92,246,0.1);color:#a78bfa":"")+'">\u23F3 Not Ordered ('+pendingN+')</button>';
   h+='</div>';
 
   // Filtered alerts
   var filtered=alerts;
   if(alertFilter==="zero") filtered=alerts.filter(function(a){return a.level==="zero";});
   else if(alertFilter==="low") filtered=alerts.filter(function(a){return a.level==="low"||a.level==="critical";});
+  else if(alertFilter==="ordered") filtered=alerts.filter(function(a){var o=orderedItems[a.item.id];return o&&(o.status==="ordered"||!o.status);});
+  else if(alertFilter==="partial") filtered=alerts.filter(function(a){var o=orderedItems[a.item.id];return o&&o.status==="partial";});
+  else if(alertFilter==="pending") filtered=alerts.filter(function(a){return !orderedItems[a.item.id];});
 
   h+='<div class="alerts-list">';
   if(filtered.length===0) {
@@ -3043,15 +3130,141 @@ function renderAlerts() {
     h+='<div class="alert-item-qty mono" style="color:'+stockColor+'">'+a.item.stock+'</div>';
     h+='<div class="alert-item-unit">'+a.item.unit+'</div>';
     h+='</div>';
+    // Order status badge
+    var _ord=orderedItems[a.item.id];
+    var _ordSt=_ord?(_ord.status||"ordered"):"none";
+    var _ordCol=_ordSt==="ordered"?"#3fb950":_ordSt==="partial"?"#d29922":"#484f58";
+    var _ordBg=_ordSt==="ordered"?"rgba(63,185,80,0.1)":_ordSt==="partial"?"rgba(210,153,34,0.1)":"rgba(255,255,255,0.03)";
+    var _ordLbl=_ordSt==="ordered"?"\u2705 Ordered":_ordSt==="partial"?"\uD83D\uDE9A Partial":"\u23F3 Order";
+    h+='<button style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;padding:6px 8px;border-radius:10px;border:1px solid '+_ordCol+'33;background:'+_ordBg+';cursor:pointer;min-width:62px" onclick="event.stopPropagation();openOrderModal(\''+a.item.id+'\',\''+a.item.name.replace(/'/g,"\\'")+'\',\''+a.item.unit+'\')">';
+    h+='<span style="font-size:9px;font-weight:700;color:'+_ordCol+'">'+_ordLbl+'</span>';
+    if(_ord&&_ord.supplier) h+='<span style="font-size:7px;color:#8b949e;max-width:58px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+_ord.supplier+'</span>';
+    if(_ord&&_ord.qtyOrdered) h+='<span style="font-size:7px;color:#484f58">'+(_ord.qtyReceived||0)+'/'+_ord.qtyOrdered+'</span>';
+    if(_ord&&_ord.date) h+='<span style="font-size:7px;color:#484f58">'+_ord.date+'</span>';
+    h+='</button>';
     h+='</div>';
   }
 
   h+='</div>';
   return h;
 }
+// Order modal state
+var orderModalItem=null; // {id, name, unit}
+var orderModalStatus="none";
+var orderModalSupplier="";
+var orderModalQty="";
+var orderModalRcv="";
+
+function openOrderModal(itemId, itemName, itemUnit) {
+  orderModalItem={id:itemId, name:itemName, unit:itemUnit||"units"};
+  var existing=orderedItems[itemId];
+  orderModalStatus=existing?(existing.status||"ordered"):"none";
+  orderModalSupplier=existing?existing.supplier||"":"";
+  orderModalQty=existing&&existing.qtyOrdered?String(existing.qtyOrdered):"";
+  orderModalRcv=existing&&existing.qtyReceived?String(existing.qtyReceived):"";
+  showModal="order";
+  render();
+}
+
+function renderOrderModal() {
+  if(!orderModalItem) return '';
+  var h='<div class="modal-overlay" onclick="showModal=\'\';orderModalItem=null;render()">';
+  h+='<div class="modal-card" onclick="event.stopPropagation()" style="max-width:380px">';
+  var existing=orderedItems[orderModalItem.id];
+  var st=orderModalStatus;
+  
+  h+='<div style="text-align:center;margin-bottom:14px">';
+  h+='<div style="font-size:28px;margin-bottom:4px">\uD83D\uDCCB</div>';
+  h+='<div style="font-size:16px;font-weight:800">Purchase Order</div>';
+  h+='<div style="font-size:12px;color:#8b949e">'+orderModalItem.name+'</div>';
+  h+='</div>';
+  
+  // Status selector
+  h+='<div style="font-size:10px;font-weight:600;color:#8b949e;text-transform:uppercase;margin-bottom:6px">Status</div>';
+  h+='<div style="display:flex;gap:4px;margin-bottom:14px">';
+  var statuses=[["none","\u23F3","Not Ordered","#484f58"],["ordered","\uD83D\uDCE6","Ordered","#3fb950"],["partial","\uD83D\uDE9A","Partial","#d29922"]];
+  for(var si=0;si<statuses.length;si++){
+    var isAct=st===statuses[si][0];
+    h+='<button onclick="saveOrderFormState();orderModalStatus=\''+statuses[si][0]+'\';render()" style="flex:1;padding:8px 4px;border-radius:10px;border:1px solid '+(isAct?statuses[si][3]+'66':'rgba(255,255,255,0.08)')+';background:'+(isAct?statuses[si][3]+'15':'rgba(255,255,255,0.03)')+';color:'+(isAct?statuses[si][3]:'#8b949e')+';font-size:10px;font-weight:700;cursor:pointer;text-align:center">';
+    h+=statuses[si][1]+' '+statuses[si][2]+'</button>';
+  }
+  h+='</div>';
+  
+  // Supplier
+  h+='<div style="font-size:10px;font-weight:600;color:#8b949e;text-transform:uppercase;margin-bottom:4px">Supplier / Vendor</div>';
+  h+='<input id="ord-supplier" class="form-input" placeholder="e.g. Sysco, US Foods..." value="'+orderModalSupplier+'" oninput="orderModalSupplier=this.value" style="margin-bottom:10px">';
+  
+  // Qty ordered + received
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">';
+  h+='<div><div style="font-size:10px;font-weight:600;color:#8b949e;text-transform:uppercase;margin-bottom:4px">Qty Ordered ('+orderModalItem.unit+')</div>';
+  h+='<input id="ord-qty" type="number" class="form-input" placeholder="0" value="'+orderModalQty+'" oninput="orderModalQty=this.value"></div>';
+  h+='<div><div style="font-size:10px;font-weight:600;color:#8b949e;text-transform:uppercase;margin-bottom:4px">Qty Received</div>';
+  h+='<input id="ord-rcv" type="number" class="form-input" placeholder="0" value="'+orderModalRcv+'" oninput="orderModalRcv=this.value"></div>';
+  h+='</div>';
+  
+  // Info line
+  if(existing&&existing.date) h+='<div style="font-size:10px;color:#484f58;margin-bottom:10px">\uD83D\uDCC5 Ordered: '+existing.date+(existing.by?' by '+existing.by:'')+'</div>';
+  
+  // Buttons
+  h+='<div class="btn-row" style="margin-top:14px">';
+  if(existing) h+='<button class="btn-cancel" style="flex:0 0 auto;padding:10px 14px;color:#f85149;border-color:rgba(248,81,73,0.2)" onclick="clearOrder(\''+orderModalItem.id+'\')">Clear</button>';
+  h+='<button class="btn-cancel" onclick="showModal=\'\';orderModalItem=null;render()">Cancel</button>';
+  h+='<button class="btn-save" onclick="saveOrder(\''+orderModalItem.id+'\',\''+orderModalItem.name.replace(/'/g,"\\'")+'\')">'+(existing?'\u2705 Update':'\uD83D\uDCE6 Mark Ordered')+'</button>';
+  h+='</div>';
+  
+  h+='</div></div>';
+  return h;
+}
+
+function saveOrderFormState(){
+  var s=document.getElementById("ord-supplier");if(s)orderModalSupplier=s.value;
+  var q=document.getElementById("ord-qty");if(q)orderModalQty=q.value;
+  var r=document.getElementById("ord-rcv");if(r)orderModalRcv=r.value;
+}
+
+function saveOrder(itemId, itemName) {
+  saveOrderFormState();
+  var status=orderModalStatus||"ordered";
+  var supplier=orderModalSupplier.trim();
+  var qtyOrdered=parseFloat(orderModalQty)||0;
+  var qtyReceived=parseFloat(orderModalRcv)||0;
+  
+  if(status==="none") {
+    delete orderedItems[itemId];
+  } else {
+    var existing=orderedItems[itemId]||{};
+    var d=new Date();
+    orderedItems[itemId]={
+      status:status,
+      supplier:supplier,
+      qtyOrdered:qtyOrdered,
+      qtyReceived:qtyReceived,
+      name:itemName,
+      date:existing.date||d.toLocaleDateString("en-US",{month:"short",day:"numeric"}),
+      by:existing.by||currentUser||"",
+      ts:existing.ts||d.toISOString(),
+      updatedTs:d.toISOString()
+    };
+    // Auto-detect partial
+    if(qtyOrdered>0&&qtyReceived>0&&qtyReceived<qtyOrdered) {
+      orderedItems[itemId].status="partial";
+    }
+  }
+  try{localStorage.setItem("invOrdered",JSON.stringify(orderedItems));}catch(e){}
+  showModal="";orderModalItem=null;
+  render();
+}
+
+function clearOrder(itemId) {
+  if(!confirm("Clear order tracking for this item?")) return;
+  delete orderedItems[itemId];
+  try{localStorage.setItem("invOrdered",JSON.stringify(orderedItems));}catch(e){}
+  showModal="";orderModalItem=null;
+  render();
+}
 
 function renderCount() {
-  var h=renderHeader('Inventory Count',storage?storage.name:'All Locations');
+  var h=renderHeader('Physical Inventory',storage?storage.name:'All Locations');
 
   // Category filter tabs
   h+='<div style="display:flex;flex-wrap:wrap;gap:4px;padding:8px 10px;max-width:700px;margin:0 auto">';
@@ -3109,20 +3322,27 @@ function renderCount() {
       h+='<div class="count-card-name">'+it.name+'</div>';
       if(it.nameEs) h+='<div style="font-size:8px;color:#8b949e;font-style:italic;text-align:center;padding:0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+it.nameEs+'</div>';
       h+='<input class="count-card-input" type="number" inputmode="decimal" value="'+val+'" onchange="updateCount(\''+cat.id+'\','+origIdx2+',this.value)">';
+      // Order status for low/zero stock
+      if(it.stock<=(it.alertLow||15)){
+        var _isOrd3=orderedItems[it.id];var _cSt3=_isOrd3?(_isOrd3.status||"ordered"):"none";
+        var _cCol3=_cSt3==="ordered"?"#3fb950":_cSt3==="partial"?"#d29922":"#484f58";
+        var _cLbl3=_cSt3==="ordered"?"\u2705":_cSt3==="partial"?"\uD83D\uDE9A":"\u23F3";
+        h+='<button style="display:flex;align-items:center;gap:3px;justify-content:center;padding:2px 6px;border-radius:6px;background:'+_cCol3+'12;border:1px solid '+_cCol3+'25;cursor:pointer;font-size:8px;font-weight:600;color:'+_cCol3+'" onclick="event.stopPropagation();openOrderModal(\''+it.id+'\',\''+it.name.replace(/'/g,"\\'")+'\',\''+it.unit+'\')">'+_cLbl3+(_cSt3==="none"?" Order":_cSt3==="partial"?" Partial":" Ordered")+'</button>';
+      }
       h+='</div>';
     }
   }
   h+='</div>';
-  if(totalChanges>0) h+='<button class="confirm-btn blue" style="position:sticky;bottom:12px;margin-top:12px" onclick="saveCount()">\u2705 Save '+totalChanges+' Changes</button>';
+  if(totalChanges>0) h+='<button class="confirm-btn blue" style="position:sticky;bottom:12px;margin-top:12px" onclick="saveCount()">\u2705 Post '+totalChanges+' Adjustments</button>';
   h+='<div class="timestamp">\uD83D\uDD52 '+now()+'</div></div>';
   return h;
 }
 
 // ========== ADMIN PANEL ==========
 function renderAdmin() {
-  var h=renderHeader("Admin Panel","\u2699\uFE0F Management");
+  var h=renderHeader("Administration","\u2699\uFE0F Inventory Management System");
   h+='<div class="admin-nav">';
-  var tabs=[["dashboard","\uD83D\uDCCA Dashboard"],["categories","\uD83D\uDDC2 Categories"],["locations","\uD83D\uDCCD Locations"],["products","\uD83D\uDCE6 Products"],["archive","\uD83D\uDCC5 Archive"],["variance","\uD83D\uDCCA Variance"],["export","\uD83D\uDCE5 Export"],["api","\uD83D\uDD17 API"],["ai","\uD83E\uDDE0 AI Tools"],["system","\u2699\uFE0F System"]];
+  var tabs=[["dashboard","\uD83D\uDCCA Dashboard"],["categories","\uD83D\uDDC2 Categories"],["locations","\uD83D\uDCCD Locations"],["products","\uD83D\uDCE6 Product Catalog"],["archive","\uD83D\uDCC5 Transaction Log"],["variance","\uD83D\uDCCA Variance Analysis"],["export","\uD83D\uDCE5 Data Export"],["api","\uD83D\uDD17 Integrations"],["ai","\uD83E\uDDE0 AI Tools"],["system","\u2699\uFE0F System"]];
   for(var i=0;i<tabs.length;i++) h+='<button class="admin-tab'+(adminTab===tabs[i][0]?' active':'')+'" onclick="adminTab=\''+tabs[i][0]+'\';render()">'+tabs[i][1]+'</button>';
   h+='</div><div class="admin-section">';
   if(adminTab==="dashboard") h+=renderDashboard();
@@ -3142,14 +3362,28 @@ function renderAdmin() {
 function renderDashboard() {
   var h='';
   // Stats
+  var zeroN=getZeroCount(),lowN=getLowCount();
+  var critN=0;var all=allItemsFlat();
+  for(var i=0;i<all.length;i++){var it=all[i].item;if(it.stock>0&&it.stock<=(it.alertCrit||5))critN++;}
   h+='<div class="dash-grid">';
-  h+='<div class="dash-card"><div class="dash-label">Total Items</div><div class="dash-value mono" style="color:#58a6ff">'+totalStock()+'</div></div>';
-  h+='<div class="dash-card"><div class="dash-label">Total Value</div><div class="dash-value mono" style="color:#3fb950">$'+totalValue().toFixed(0)+'</div></div>';
-  h+='<div class="dash-card"><div class="dash-label">Low Stock</div><div class="dash-value mono" style="color:#f85149">'+lowStockCount()+'</div></div>';
-  h+='<div class="dash-card"><div class="dash-label">Categories</div><div class="dash-value mono" style="color:#a78bfa">'+CATEGORIES.length+'</div></div>';
+  h+='<div class="dash-card"><div class="dash-label">On-Hand Units</div><div class="dash-value mono" style="color:#58a6ff">'+totalStock()+'</div></div>';
+  h+='<div class="dash-card"><div class="dash-label">Inventory Value</div><div class="dash-value mono" style="color:#3fb950">$'+totalValue().toFixed(0)+'</div></div>';
+  h+='<div class="dash-card" style="cursor:pointer" onclick="alertFilter=\'zero\';screen=\'alerts\';render()"><div class="dash-label">\u26D4 Stockout</div><div class="dash-value mono" style="color:'+(zeroN>0?'#f85149':'#3fb950')+'">'+zeroN+'</div></div>';
+  h+='<div class="dash-card" style="cursor:pointer" onclick="alertFilter=\'low\';screen=\'alerts\';render()"><div class="dash-label">\u26A0 Critical</div><div class="dash-value mono" style="color:'+(critN>0?'#f85149':'#3fb950')+'">'+critN+'</div></div>';
+  h+='<div class="dash-card" style="cursor:pointer" onclick="alertFilter=\'low\';screen=\'alerts\';render()"><div class="dash-label">\uD83D\uDCE2 Below ROP</div><div class="dash-value mono" style="color:'+(lowN>0?'#d29922':'#3fb950')+'">'+lowN+'</div></div>';
+  h+='<div class="dash-card"><div class="dash-label">Product Master</div><div class="dash-value mono" style="color:#a78bfa">'+all.length+' SKUs</div></div>';
+  h+='</div>';
+
+  // Quick actions
+  h+='<div style="font-size:13px;font-weight:700;margin:16px 0 8px">\u26A1 Quick Actions</div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:16px">';
+  h+='<button onclick="screen=\'main\';setMode(\'in\')" style="padding:12px 8px;border-radius:12px;border:1px solid rgba(63,185,80,0.2);background:rgba(63,185,80,0.06);color:#3fb950;font-size:11px;font-weight:700;cursor:pointer;text-align:center"><div style="font-size:20px;margin-bottom:2px">\uD83D\uDCE5</div>Receiving</button>';
+  h+='<button onclick="screen=\'main\';setMode(\'out\')" style="padding:12px 8px;border-radius:12px;border:1px solid rgba(248,81,73,0.2);background:rgba(248,81,73,0.06);color:#f85149;font-size:11px;font-weight:700;cursor:pointer;text-align:center"><div style="font-size:20px;margin-bottom:2px">\uD83D\uDCE4</div>Issuing</button>';
+  h+='<button onclick="screen=\'main\';setMode(\'count\')" style="padding:12px 8px;border-radius:12px;border:1px solid rgba(88,166,255,0.2);background:rgba(88,166,255,0.06);color:#58a6ff;font-size:11px;font-weight:700;cursor:pointer;text-align:center"><div style="font-size:20px;margin-bottom:2px">\uD83D\uDCCB</div>Count</button>';
+  h+='<button onclick="alertFilter=\'all\';screen=\'alerts\';render()" style="padding:12px 8px;border-radius:12px;border:1px solid rgba(210,153,34,0.2);background:rgba(210,153,34,0.06);color:#d29922;font-size:11px;font-weight:700;cursor:pointer;text-align:center"><div style="font-size:20px;margin-bottom:2px">\u26A0\uFE0F</div>Alerts</button>';
   h+='</div>';
   // Chart by category
-  h+='<div class="dash-chart"><div style="font-size:13px;font-weight:700;margin-bottom:12px">\uD83D\uDCCA Stock by Category</div>';
+  h+='<div class="dash-chart"><div style="font-size:13px;font-weight:700;margin-bottom:12px">\uD83D\uDCCA On-Hand Inventory by Category</div>';
   var maxStock=0;for(var c in ITEMS_DB){var cs=0;for(var i=0;i<ITEMS_DB[c].length;i++)cs+=ITEMS_DB[c][i].stock;if(cs>maxStock)maxStock=cs;}
   for(var ci=0;ci<CATEGORIES.length;ci++){var cat=CATEGORIES[ci];var cs=0;for(var i=0;i<(ITEMS_DB[cat.id]||[]).length;i++)cs+=ITEMS_DB[cat.id][i].stock;
     var pct=maxStock?Math.round(cs/maxStock*100):0;
@@ -3169,6 +3403,7 @@ function renderDashboard() {
       h+='<span style="color:'+col+';font-weight:700;min-width:20px" class="mono">'+sign+'</span>';
       h+='<span style="flex:1">'+tx.item+'</span>';
       h+='<span class="mono" style="font-weight:600;color:'+col+'">'+tx.qty+' '+tx.unit+'</span>';
+      if(tx.user) h+='<span style="color:#484f58;font-size:9px">\uD83D\uDC64'+tx.user+'</span>';
       h+='<span style="color:#484f58;font-size:10px">'+tx.time+'</span></div>';
     }
   }
@@ -3371,7 +3606,7 @@ function renderLocationsAdmin() {
   }
   h+='<div style="margin-top:16px;padding:14px;border-radius:14px;border:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02)">';
   h+='<div style="font-size:12px;font-weight:700;color:#8b949e;margin-bottom:8px">\uD83D\uDCA1 Tips</div>';
-  h+='<div style="font-size:11px;color:#8b949e;line-height:1.6">\u2022 Storage locations define where items are physically stored<br>\u2022 Products can be assigned to multiple locations (e.g. Chicken \u2192 Fridge + Freezer)<br>\u2022 When doing Stock In/Out, select a location to filter products<br>\u2022 Deleting a location with products will remove the assignment from those products</div></div>';
+  h+='<div style="font-size:11px;color:#8b949e;line-height:1.6">\u2022 Storage locations define where items are physically stored<br>\u2022 Products can be assigned to multiple locations (e.g. Chicken \u2192 Fridge + Freezer)<br>\u2022 During Goods Receipt / Issue, select a location to filter relevant products<br>\u2022 Deleting a location with products will remove the assignment from those products</div></div>';
   return h;
 }
 function addLocation() {
@@ -3410,19 +3645,19 @@ function renderProductList() {
   // Action buttons row 1
   h+='<div style="display:flex;gap:8px;margin-bottom:8px">';
   h+='<button onclick="openAddProduct()" style="flex:1;padding:12px;border-radius:14px;background:linear-gradient(135deg,#238636,#2ea043);color:#fff;font-size:14px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 2px 12px rgba(46,160,67,0.3);transition:all 0.2s">';
-  h+='\u2795 Add Manually</button>';
+  h+='\u2795 Add SKU</button>';
   h+='<button onclick="openAddProductPhoto()" style="flex:1;padding:12px;border-radius:14px;background:linear-gradient(135deg,#8b5cf6,#a78bfa);color:#fff;font-size:14px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 2px 12px rgba(139,92,246,0.3);transition:all 0.2s">';
-  h+='\uD83D\uDCF7 Add by Photo</button>';
+  h+='\uD83D\uDCF7 AI Identify</button>';
   h+='</div>';
   // Action buttons row 2
   h+='<div style="display:flex;gap:8px;margin-bottom:12px">';
   h+='<label style="flex:1;padding:12px;border-radius:14px;background:linear-gradient(135deg,#1a7f37,#2ea043);color:#fff;font-size:14px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 2px 12px rgba(46,160,67,0.2);transition:all 0.2s">';
-  h+='\uD83D\uDCE5 Import from Excel';
+  h+='\uD83D\uDCE5 Catalog Import (Excel / CSV)';
   h+='<input type="file" accept=".csv,.tsv,.xlsx,.xls" style="display:none" onchange="handleExcelImport(this)">';
   h+='</label>';
   if(adminSelected.length>0){
     h+='<button onclick="adminDeleteSelected()" style="flex:1;padding:12px;border-radius:14px;background:linear-gradient(135deg,#da3633,#f85149);color:#fff;font-size:14px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 2px 12px rgba(248,81,73,0.3);transition:all 0.2s">';
-    h+='\uD83D\uDDD1 Delete Selected ('+adminSelected.length+')</button>';
+    h+='\uD83D\uDDD1 Deactivate Selected ('+adminSelected.length+')</button>';
   }
   h+='</div>';
   // Search
@@ -3605,11 +3840,28 @@ function renderAiTools() {
 function renderSystem() {
   var h='<div style="font-size:15px;font-weight:700;margin-bottom:12px">\u2699\uFE0F System & Migration</div>';
 
+  // Employee management
+  h+='<div style="font-size:13px;font-weight:600;color:#8b949e;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.06em">\uD83D\uDC65 Employees / Operators</div>';
+  h+='<div style="padding:14px;border-radius:14px;border:1px solid rgba(88,166,255,0.12);background:rgba(88,166,255,0.03);margin-bottom:16px">';
+  h+='<div style="font-size:11px;color:#8b949e;margin-bottom:8px">Active employees are shown on the user selection screen. Current user is logged on every transaction.</div>';
+  for(var ei=0;ei<employees.length;ei++){
+    var isCur=currentUser===employees[ei];
+    h+='<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04)">';
+    h+='<span style="font-size:12px;width:20px;text-align:center;color:#484f58">'+(ei+1)+'</span>';
+    h+='<span style="flex:1;font-size:13px;font-weight:'+(isCur?'700':'500')+';color:'+(isCur?'#58a6ff':'#e6edf3')+'">'+employees[ei]+(isCur?' \u2190 active':'')+'</span>';
+    h+='<button onclick="removeEmployee('+ei+')" style="padding:2px 8px;border-radius:6px;border:1px solid rgba(248,81,73,0.2);background:rgba(248,81,73,0.06);color:#f85149;font-size:10px;cursor:pointer">\u2715</button>';
+    h+='</div>';
+  }
+  h+='<div style="display:flex;gap:6px;margin-top:10px">';
+  h+='<input id="new-emp" placeholder="New employee name..." style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#e6edf3;font-size:12px">';
+  h+='<button onclick="addEmployee()" style="padding:8px 14px;border-radius:8px;border:none;background:#238636;color:#fff;font-size:12px;font-weight:600;cursor:pointer">\u2795 Add</button>';
+  h+='</div></div>';
+
   // App info
   h+='<div style="padding:16px;border-radius:14px;border:1px solid rgba(88,166,255,0.15);background:rgba(88,166,255,0.04);margin-bottom:12px">';
   h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">';
   h+='<div style="font-size:28px">\uD83D\uDCE6</div>';
-  h+='<div><div style="font-size:14px;font-weight:700">Smart Inventory v'+APP_VERSION+'</div>';
+  h+='<div><div style="font-size:14px;font-weight:700">Inventory Control System v'+APP_VERSION+'</div>';
   h+='<div style="font-size:11px;color:#8b949e">PWA \u00B7 Vanilla JS \u00B7 Offline Ready</div></div></div>';
   var all=allItemsFlat();
   h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11px;text-align:center">';
@@ -3619,12 +3871,12 @@ function renderSystem() {
   h+='</div></div>';
 
   // Export state
-  h+='<div style="font-size:13px;font-weight:600;color:#8b949e;margin:16px 0 8px;text-transform:uppercase;letter-spacing:0.06em">\uD83D\uDCBE Data Backup & Migration</div>';
+  h+='<div style="font-size:13px;font-weight:600;color:#8b949e;margin:16px 0 8px;text-transform:uppercase;letter-spacing:0.06em">\uD83D\uDCBE Backup & Data Migration</div>';
 
   h+='<div class="export-card" onclick="exportAppState()">';
   h+='<div style="display:flex;align-items:center;gap:10px">';
   h+='<div style="font-size:24px">\uD83D\uDCE4</div>';
-  h+='<div style="flex:1"><div style="font-size:13px;font-weight:600">\uFE0F Export Full State (JSON)</div>';
+  h+='<div style="flex:1"><div style="font-size:13px;font-weight:600">\uFE0F Full Data Backup (JSON)</div>';
   h+='<div style="font-size:11px;color:#8b949e">All products, transactions, settings \u2014 for backup or migration to external app</div></div>';
   h+='<div style="color:#58a6ff">\u2192</div></div></div>';
 
@@ -3693,7 +3945,7 @@ function renderSystem() {
   h+='<div style="font-size:13px;font-weight:600;color:#8b949e;margin:16px 0 8px;text-transform:uppercase;letter-spacing:0.06em">\uD83D\uDDD1 Data Management</div>';
   h+='<div style="padding:14px;border-radius:14px;border:1px solid rgba(248,81,73,0.15);background:rgba(248,81,73,0.04)">';
   h+='<div style="display:flex;gap:8px;flex-wrap:wrap">';
-  h+='<button onclick="if(confirm(\'Reset ALL data to factory defaults?\\n\\nThis will delete all custom categories, locations, products, and stock changes!\\n\\nThis CANNOT be undone!\')){localStorage.removeItem(\'invCategories\');localStorage.removeItem(\'invStorages\');localStorage.removeItem(\'invItemsDB\');localStorage.removeItem(\'invTxLog\');location.reload();}" style="padding:10px 16px;border-radius:10px;background:rgba(248,81,73,0.15);color:#f85149;font-size:12px;font-weight:700;border:1px solid rgba(248,81,73,0.3);cursor:pointer">\uD83D\uDDD1 Reset to Factory Defaults</button>';
+  h+='<button onclick="if(confirm(\'Reset ALL data to factory defaults?\\n\\nThis will delete all custom categories, locations, products, and stock changes!\\n\\nThis CANNOT be undone!\')){localStorage.removeItem(\'invCategories\');localStorage.removeItem(\'invStorages\');localStorage.removeItem(\'invItemsDB\');localStorage.removeItem(\'invTxLog\');localStorage.removeItem(\'invArchive\');localStorage.removeItem(\'invOrdered\');localStorage.removeItem(\'invEmployees\');localStorage.removeItem(\'invCurrentUser\');location.reload();}" style="padding:10px 16px;border-radius:10px;background:rgba(248,81,73,0.15);color:#f85149;font-size:12px;font-weight:700;border:1px solid rgba(248,81,73,0.3);cursor:pointer">\uD83D\uDDD1 Reset to Factory Defaults</button>';
   h+='<button onclick="if(confirm(\'Clear all stock levels to 0?\')){for(var c in ITEMS_DB)for(var i=0;i<ITEMS_DB[c].length;i++){ITEMS_DB[c][i].stock=0;if(ITEMS_DB[c][i].subs)for(var s=0;s<ITEMS_DB[c][i].subs.length;s++)ITEMS_DB[c][i].subs[s].stock=0;}saveData();render();}" style="padding:10px 16px;border-radius:10px;background:rgba(210,153,34,0.15);color:#d29922;font-size:12px;font-weight:700;border:1px solid rgba(210,153,34,0.3);cursor:pointer">\u26A0 Zero All Stock</button>';
   h+='</div>';
   h+='<div style="font-size:10px;color:#8b949e;margin-top:8px">Data is auto-saved to browser storage (localStorage). Factory reset removes all custom data.</div>';
@@ -3705,7 +3957,7 @@ function renderSystem() {
 // ========== MODALS ==========
 function renderPin() {
   var h='<div class="pin-screen"><div style="font-size:44px;margin-bottom:12px">\uD83D\uDD10</div>';
-  h+='<div style="font-size:18px;font-weight:700">Admin Access</div>';
+  h+='<div style="font-size:18px;font-weight:700">Authorization Required</div>';
   h+='<div style="font-size:13px;color:#8b949e">Enter 4-digit PIN</div>';
   h+='<div class="pin-dots">';for(var i=0;i<4;i++){var c="pin-dot";if(pinError)c+=" error";else if(i<pinInput.length)c+=" filled";h+='<div class="'+c+'"></div>';}
   h+='</div><div class="pin-pad">';
@@ -3722,12 +3974,20 @@ function renderSuccess() {
 function renderOverstock() {
   var h='<div class="modal-overlay" onclick="showModal=\'\';render()"><div class="modal-card" onclick="event.stopPropagation()" style="text-align:center">';
   h+='<div style="font-size:56px;margin-bottom:8px">\u26D4</div>';
-  h+='<div style="font-size:18px;font-weight:700;color:#f85149;margin-bottom:8px">Not Enough Stock</div>';
+  h+='<div style="font-size:18px;font-weight:700;color:#f85149;margin-bottom:8px">Insufficient Stock</div>';
   h+='<div style="font-size:14px;color:#e6edf3;margin-bottom:4px">You are trying to remove <strong class="mono" style="color:#f85149">'+quantity+'</strong> '+selItem.unit+'</div>';
-  h+='<div style="font-size:14px;color:#e6edf3;margin-bottom:16px">Available stock: <strong class="mono" style="color:#58a6ff">'+selItem.stock+'</strong> '+selItem.unit+'</div>';
-  h+='<div style="padding:12px;background:rgba(248,81,73,0.08);border-radius:12px;font-size:13px;color:#f85149;margin-bottom:16px;line-height:1.5">Cannot remove more than the current stock quantity.</div>';
-  h+='<div class="btn-row"><button class="btn-cancel" onclick="showModal=\'\';render()">Go Back</button>';
-  h+='<button class="btn-save" style="background:linear-gradient(135deg,#1a6dd4,#388bfd)" onclick="quantity=String(selItem.stock);showModal=\'\';render()">Use Max ('+selItem.stock+')</button></div>';
+  h+='<div style="font-size:14px;color:#e6edf3;margin-bottom:16px">On-hand quantity: <strong class="mono" style="color:#58a6ff">'+selItem.stock+'</strong> '+selItem.unit+'</div>';
+  h+='<div style="padding:12px;background:rgba(248,81,73,0.08);border-radius:12px;font-size:13px;color:#f85149;margin-bottom:12px;line-height:1.5">Issue quantity exceeds available on-hand stock.</div>';
+  // Quick order button
+  var _oItemId=selItem.id||"";
+  if(_oItemId){
+    var _oOrd=orderedItems[_oItemId];var _oSt=_oOrd?(_oOrd.status||"ordered"):"none";
+    var _oCol=_oSt==="ordered"?"#3fb950":_oSt==="partial"?"#d29922":"#d29922";
+    var _oLbl=_oSt==="ordered"?"\u2705 Ordered":_oSt==="partial"?"\uD83D\uDE9A Partial Delivery":"\uD83D\uDCE6 Mark as Ordered";
+    h+='<div style="margin-bottom:16px"><button style="display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:10px;background:'+_oCol+'12;border:1px solid '+_oCol+'33;cursor:pointer;font-size:12px;font-weight:600;color:'+_oCol+'" onclick="showModal=\'\';openOrderModal(\''+_oItemId+'\',\''+selItem.name.replace(/'/g,"\\'")+'\',\''+selItem.unit+'\')">'+_oLbl+'</button></div>';
+  }
+  h+='<div class="btn-row"><button class="btn-cancel" onclick="showModal=\'\';render()">Cancel</button>';
+  h+='<button class="btn-save" style="background:linear-gradient(135deg,#1a6dd4,#388bfd)" onclick="quantity=String(selItem.stock);showModal=\'\';render()">Issue All ('+selItem.stock+')</button></div>';
   h+='</div></div>';
   return h;
 }
@@ -3761,7 +4021,7 @@ function renderAddModal() {
   }
   h+='</div></div>';
   h+='<div class="btn-row"><button class="btn-cancel" onclick="showModal=\'\';render()">Cancel</button>';
-  h+='<button class="btn-save" onclick="saveNewItem()">Add Item</button></div></div></div>';
+  h+='<button class="btn-save" onclick="saveNewItem()">Add to Catalog</button></div></div></div>';
   return h;
 }
 function renderDeleteModal() {
@@ -3860,7 +4120,7 @@ function renderEditModal() {
   h+='</div>';
   // Action buttons
   h+='<div class="btn-row" style="margin-top:20px"><button class="btn-cancel" onclick="showModal=\'\';editTarget=null;render()">Cancel</button>';
-  h+='<button class="btn-save" onclick="saveEditItem()">\u2705 Save Changes</button></div></div></div>';
+  h+='<button class="btn-save" onclick="saveEditItem()">\u2705 Update Product</button></div></div></div>';
   return h;
 }
 function renderBarcodeOverlay() {
@@ -3980,7 +4240,7 @@ function renderBarcodeOverlay() {
 function renderInvoiceModal() {
   if(scanState==="capturing") {
     var h='<div class="modal-overlay"><div class="modal-card" style="max-width:480px">';
-    h+='<div class="modal-title">\uD83D\uDCF7 Scan Invoice</div><div class="scan-area">';
+    h+='<div class="modal-title">\uD83D\uDCF7 Document Capture (OCR)</div><div class="scan-area">';
     h+='<div style="font-size:48px;margin-bottom:8px">\uD83D\uDCCE</div>';
     h+='<div style="font-size:14px;font-weight:600;margin-bottom:4px">Take a photo or upload</div>';
     if(claudeConnected) {
@@ -4084,17 +4344,27 @@ function renderArchive(){
   h+='<input type="date" class="arc-input" value="'+arcDateTo+'" onchange="arcDateTo=this.value;render()" title="To date">';
   h+='<select class="arc-input" onchange="arcModeFilter=this.value;render()">';
   h+='<option value="all"'+(arcModeFilter==="all"?" selected":"")+'>All Types</option>';
-  h+='<option value="in"'+(arcModeFilter==="in"?" selected":"")+'>\uD83D\uDCE5 Stock In</option>';
-  h+='<option value="out"'+(arcModeFilter==="out"?" selected":"")+'>\uD83D\uDCE4 Stock Out</option>';
-  h+='<option value="count"'+(arcModeFilter==="count"?" selected":"")+'>\uD83D\uDCCB Count</option>';
-  h+='<option value="transfer"'+(arcModeFilter==="transfer"?" selected":"")+'>\uD83D\uDD04 Transfer</option>';
+  h+='<option value="in"'+(arcModeFilter==="in"?" selected":"")+'>📥 Goods Receipt</option>';
+  h+='<option value="out"'+(arcModeFilter==="out"?" selected":"")+'>📤 Goods Issue</option>';
+  h+='<option value="count"'+(arcModeFilter==="count"?" selected":"")+'>📋 Count</option>';
+  h+='<option value="transfer"'+(arcModeFilter==="transfer"?" selected":"")+'>🔄 Transfer</option>';
   h+='</select>';
+  // User filter
+  var arcUsers={};for(var ai=0;ai<archive.length;ai++)if(archive[ai].user)arcUsers[archive[ai].user]=true;
+  var arcUserList=Object.keys(arcUsers);
+  if(arcUserList.length>0){
+    h+='<select class="arc-input" onchange="arcUserFilter=this.value;render()">';
+    h+='<option value="all"'+(arcUserFilter==="all"?" selected":"")+'>All Users</option>';
+    for(var ui=0;ui<arcUserList.length;ui++) h+='<option value="'+arcUserList[ui]+'"'+(arcUserFilter===arcUserList[ui]?" selected":"")+'>👤 '+arcUserList[ui]+'</option>';
+    h+='</select>';
+  }
   h+='<input class="arc-input" style="flex:1;min-width:120px" placeholder="\uD83D\uDD0D Search item..." value="'+arcSearchQ+'" oninput="arcSearchQ=this.value;render()">';
   h+='</div>';
 
   // Filter archive
   var filtered=archive.filter(function(a){
     if(arcModeFilter!=="all"&&a.mode!==arcModeFilter) return false;
+    if(arcUserFilter!=="all"&&(a.user||"")!==arcUserFilter) return false;
     if(arcSearchQ){var q=arcSearchQ.toLowerCase();if((a.item||"").toLowerCase().indexOf(q)===-1) return false;}
     if(arcDateFrom&&a.ts){if(a.ts.substring(0,10)<arcDateFrom) return false;}
     if(arcDateTo&&a.ts){if(a.ts.substring(0,10)>arcDateTo) return false;}
@@ -4120,8 +4390,8 @@ function renderArchive(){
 
   // Export button
   h+='<div style="display:flex;gap:8px;margin-bottom:14px">';
-  h+='<button class="confirm-btn green" style="flex:1;margin:0;padding:10px" onclick="exportArchiveCSV()">\uD83D\uDCE5 Export CSV</button>';
-  h+='<button class="sort-pill" style="padding:10px 16px" onclick="if(confirm(\'Clear all archive data? This cannot be undone.\')){archive=[];localStorage.removeItem(\'invArchive\');render();}">\uD83D\uDDD1 Clear</button>';
+  h+='<button class="confirm-btn green" style="flex:1;margin:0;padding:10px" onclick="exportArchiveCSV()">\uD83D\uDCE5 Export to CSV</button>';
+  h+='<button class="sort-pill" style="padding:10px 16px" onclick="if(confirm(\'Purge all transaction history? This cannot be undone.\')){archive=[];localStorage.removeItem(\'invArchive\');render();}">\uD83D\uDDD1 Purge</button>';
   h+='</div>';
 
   // Transaction list
@@ -4136,7 +4406,7 @@ function renderArchive(){
     h+='<div class="arc-row">';
     h+='<div style="font-size:16px;width:22px;text-align:center">'+mIcon+'</div>';
     h+='<div style="flex:1"><div style="font-weight:600">'+a.item+'</div>';
-    h+='<div style="font-size:10px;color:#484f58">'+(a.storage||"")+(a.reason&&a.reason!=="used"?" \u00B7 "+a.reason:"")+(a.cat?" \u00B7 "+a.cat:"")+'</div></div>';
+    h+='<div style="font-size:10px;color:#484f58">'+(a.storage||"")+(a.reason&&a.reason!=="used"?" \u00B7 "+a.reason:"")+(a.cat?" \u00B7 "+a.cat:"")+(a.user?" \u00B7 \uD83D\uDC64"+a.user:"")+'</div></div>';
     h+='<div style="text-align:right;min-width:60px"><div class="mono" style="font-weight:700;color:'+mc+'">'+sign+a.qty+' '+a.unit+'</div>';
     if(a.total>0) h+='<div style="font-size:9px;color:#484f58">$'+a.total.toFixed(2)+'</div>';
     h+='</div>';
@@ -4144,7 +4414,7 @@ function renderArchive(){
     h+='</div>';
   }
   if(filtered.length>200) h+='<div style="text-align:center;padding:12px;color:#484f58;font-size:11px">Showing 200 of '+filtered.length+' — export CSV for full data</div>';
-  if(filtered.length===0) h+='<div style="text-align:center;padding:30px;color:#484f58;font-size:13px">No transactions found. Start using Stock In/Out to build your archive.</div>';
+  if(filtered.length===0) h+='<div style="text-align:center;padding:30px;color:#484f58;font-size:13px">No transactions recorded. Begin processing Goods Receipts and Issues to populate the log.</div>';
   h+='</div>';
   return h;
 }
@@ -4152,12 +4422,13 @@ function renderArchive(){
 function exportArchiveCSV(){
   var filtered=archive.filter(function(a){
     if(arcModeFilter!=="all"&&a.mode!==arcModeFilter) return false;
+    if(arcUserFilter!=="all"&&(a.user||"")!==arcUserFilter) return false;
     if(arcSearchQ&&(a.item||"").toLowerCase().indexOf(arcSearchQ.toLowerCase())===-1) return false;
     if(arcDateFrom&&a.ts&&a.ts.substring(0,10)<arcDateFrom) return false;
     if(arcDateTo&&a.ts&&a.ts.substring(0,10)>arcDateTo) return false;
     return true;
   });
-  var csv="Date,Time,Type,SKU,Item,Category,Qty,Unit,Price,Total,Storage,Reason,Stock After\n";
+  var csv="Date,Time,Type,SKU,Item,Category,Qty,Unit,Price,Total,Storage,Reason,User,Stock After\n";
   for(var i=0;i<filtered.length;i++){var a=filtered[i];
     var d=a.ts?new Date(a.ts):new Date();
     csv+=d.toLocaleDateString("en-GB")+",";
@@ -4170,6 +4441,7 @@ function exportArchiveCSV(){
     csv+=(a.price||0)+","+(a.total||0)+",";
     csv+='"'+(a.storage||"")+'",';
     csv+='"'+(a.reason||"")+'",';
+    csv+='"'+(a.user||"")+'",';
     csv+=(a.stockAfter!=null?a.stockAfter:"")+"\n";
   }
   var blob=new Blob([csv],{type:"text/csv"});
@@ -4181,10 +4453,10 @@ function exportArchiveCSV(){
 
 // ========== STOCK TRANSFER ==========
 function renderTransfer() {
-  var h=renderHeader("Stock Transfer","\uD83D\uDD04 Move between locations");
+  var h=renderHeader("Inter-Location Transfer","\uD83D\uDD04 Move inventory between storage areas");
   h+='<div style="max-width:500px;margin:0 auto;padding:20px">';
   // From location
-  h+='<div style="font-size:12px;font-weight:600;color:#8b949e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">From</div>';
+  h+='<div style="font-size:12px;font-weight:600;color:#8b949e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">Origin Location</div>';
   h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:6px;margin-bottom:12px">';
   for(var i=0;i<STORAGES.length;i++){var s=STORAGES[i];var sel=transferFrom&&transferFrom.id===s.id;
     h+='<button class="transfer-loc-btn'+(sel?" selected":"")+'" onclick="transferFrom=STORAGES['+i+'];render()">'+s.icon+' '+s.name+'</button>';}
@@ -4192,7 +4464,7 @@ function renderTransfer() {
   // Arrow
   h+='<div class="transfer-arrow">\u2B07\uFE0F</div>';
   // To location
-  h+='<div style="font-size:12px;font-weight:600;color:#8b949e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">To</div>';
+  h+='<div style="font-size:12px;font-weight:600;color:#8b949e;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em">Destination Location</div>';
   h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:6px;margin-bottom:16px">';
   for(var i=0;i<STORAGES.length;i++){var s=STORAGES[i];var sel=transferTo&&transferTo.id===s.id;
     var dis=transferFrom&&transferFrom.id===s.id;
@@ -4200,7 +4472,7 @@ function renderTransfer() {
   h+='</div>';
   // Items to transfer
   if(transferFrom&&transferTo){
-    h+='<div style="font-size:12px;font-weight:600;color:#e6edf3;margin-bottom:8px">Select items to transfer from '+transferFrom.icon+' '+transferFrom.name+' \u2192 '+transferTo.icon+' '+transferTo.name+'</div>';
+    h+='<div style="font-size:12px;font-weight:600;color:#e6edf3;margin-bottom:8px">Select items & quantities: '+transferFrom.icon+' '+transferFrom.name+' \u2192 '+transferTo.icon+' '+transferTo.name+'</div>';
     var items=allItemsFlat().filter(function(x){return !x.item.loc||x.item.loc.length===0||x.item.loc.indexOf(transferFrom.id)!==-1;});
     h+='<div style="max-height:300px;overflow-y:auto">';
     for(var i=0;i<items.length;i++){var it=items[i].item;
@@ -4231,7 +4503,7 @@ function executeTransfer(){
       // Add destination location if not already there
       if(!all[i].item.loc) all[i].item.loc=[];
       if(all[i].item.loc.indexOf(transferTo.id)===-1) all[i].item.loc.push(transferTo.id);
-      txLog.push({item:all[i].item.name,mode:"transfer",qty:q,unit:all[i].item.unit,storage:transferFrom.name+" \u2192 "+transferTo.name,time:now(),reason:""});
+      txLog.push({item:all[i].item.name,mode:"transfer",qty:q,unit:all[i].item.unit,storage:transferFrom.name+" \u2192 "+transferTo.name,time:now(),reason:"",user:currentUser||""});
       archivePush({item:all[i].item.name,itemId:all[i].item.id||"",cat:"",mode:"transfer",qty:q,unit:all[i].item.unit,price:0,total:0,storage:transferFrom.name+" \u2192 "+transferTo.name,reason:"transfer",stockAfter:all[i].item.stock});
       moved++;
     }
@@ -4241,7 +4513,7 @@ function executeTransfer(){
 
 // ========== COUNT SHEET ==========
 function renderCountSheet() {
-  var h=renderHeader("Count Sheets","\uD83D\uDCCB Organized Counting");
+  var h=renderHeader("Count Sheets","\uD83D\uDCCB Cycle Count Forms");
   h+='<div style="max-width:540px;margin:0 auto;padding:20px">';
   if(!countSheetMode){
     // Mode selection
@@ -4382,7 +4654,7 @@ function renderGlobalSearch(){
   var h='<div class="global-search-overlay" onclick="closeGlobalSearch()">';
   h+='<div onclick="event.stopPropagation()" style="max-width:500px;margin:0 auto;width:100%">';
   h+='<div style="position:relative;margin-bottom:16px"><span style="position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:20px">\uD83D\uDD0D</span>';
-  h+='<input class="global-search-input" id="gs-input" placeholder="Search all products..." value="'+globalSearchQuery+'" oninput="globalSearchQuery=this.value;render();setTimeout(function(){var e=document.getElementById(\'gs-input\');if(e)e.focus();},10)">';
+  h+='<input class="global-search-input" id="gs-input" placeholder="Product lookup (EN / ES / SKU)..." value="'+globalSearchQuery+'" oninput="globalSearchQuery=this.value;render();setTimeout(function(){var e=document.getElementById(\'gs-input\');if(e)e.focus();},10)">';
   h+='<button onclick="closeGlobalSearch()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:16px;color:#8b949e;cursor:pointer">\u2715</button></div>';
   // Results
   if(globalSearchQuery.length>=2){
@@ -4406,6 +4678,13 @@ function renderGlobalSearch(){
       h+='<div style="font-size:11px;color:#484f58">'+(r.cat?r.cat.emoji+" "+r.cat.name:"")+(r.item.subs&&r.item.subs.length?" \u00B7 "+r.item.subs.length+" sizes":"")+'</div></div>';
       h+='<div style="text-align:right"><div class="mono" style="font-size:16px;font-weight:800;color:'+sc2+'">'+rStock+'</div>';
       h+='<div style="font-size:10px;color:#484f58">'+r.item.unit+'</div></div>';
+      // Order status for low stock
+      if(rStock<=(r.item.alertLow||15)&&r.item.id){
+        var _gsOrd=orderedItems[r.item.id];var _gsSt=_gsOrd?(_gsOrd.status||"ordered"):"none";
+        var _gsCol=_gsSt==="ordered"?"#3fb950":_gsSt==="partial"?"#d29922":"#484f58";
+        var _gsLbl=_gsSt==="ordered"?"\u2705":_gsSt==="partial"?"\uD83D\uDE9A":"\u23F3";
+        h+='<button onclick="event.stopPropagation();openOrderModal(\''+r.item.id+'\',\''+r.item.name.replace(/'/g,"\\'")+'\',\''+r.item.unit+'\')" style="display:flex;flex-direction:column;align-items:center;gap:1px;flex-shrink:0;padding:4px 6px;border-radius:8px;background:'+_gsCol+'12;border:1px solid '+_gsCol+'25;cursor:pointer;font-size:7px;font-weight:600;color:'+_gsCol+'">'+_gsLbl+(_gsSt==="none"?" Order":_gsSt==="partial"?" Partial":" Ordered")+'</button>';
+      }
       h+='<button onclick="event.stopPropagation();gsHistory(\''+r.catId+'\','+r.idx+')" style="padding:6px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);font-size:14px;cursor:pointer" title="History">\uD83D\uDCCA</button>';
       h+='</div>';
     }
@@ -4434,7 +4713,7 @@ function gsHistory(catId,idx){
 function renderItemHistory(){
   if(!itemHistoryTarget) return renderMain();
   var it=itemHistoryTarget.item;
-  var h=renderHeader(it.name,"\uD83D\uDCCA History");
+  var h=renderHeader(it.name,"\uD83D\uDCCA Transaction History");
   h+='<div style="max-width:540px;margin:0 auto;padding:20px">';
   // Item card
   h+='<div style="display:flex;align-items:center;gap:14px;padding:16px;background:rgba(255,255,255,0.03);border-radius:16px;border:1px solid rgba(255,255,255,0.06);margin-bottom:16px">';
@@ -4448,6 +4727,17 @@ function renderItemHistory(){
     if(it.lastIn) h+='<span style="color:#3fb950">\uD83D\uDCE5 In: '+it.lastIn+'</span>';
     if(it.lastOut) h+='<span style="color:#f85149">\uD83D\uDCE4 Out: '+it.lastOut+'</span>';
     h+='</div>';
+  }
+  h+='</div>';
+  // Order status for low stock
+  if(it.stock<=(it.alertLow||15)&&it.id){
+    var _hOrd=orderedItems[it.id];var _hSt=_hOrd?(_hOrd.status||"ordered"):"none";
+    var _hCol=_hSt==="ordered"?"#3fb950":_hSt==="partial"?"#d29922":"#f85149";
+    var _hLbl=_hSt==="ordered"?"\u2705 Ordered":_hSt==="partial"?"\uD83D\uDE9A Partial Delivery":"\uD83D\uDCE6 Mark as Ordered";
+    h+='<div style="margin-top:6px"><button style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:8px;background:'+_hCol+'12;border:1px solid '+_hCol+'25;cursor:pointer;font-size:11px;font-weight:600;color:'+_hCol+'" onclick="openOrderModal(\''+it.id+'\',\''+it.name.replace(/'/g,"\\'")+'\',\''+it.unit+'\')">'+_hLbl;
+    if(_hOrd&&_hOrd.supplier) h+=' \u00B7 '+_hOrd.supplier;
+    if(_hOrd&&_hOrd.qtyOrdered) h+=' ('+(_hOrd.qtyReceived||0)+'/'+_hOrd.qtyOrdered+')';
+    h+='</button></div>';
   }
   h+='</div></div>';
   // Filter transactions for this item
@@ -4477,9 +4767,9 @@ function openItemHistory(catId,idx){
 
 // ========== TEMPERATURE LOG ==========
 function renderTempLog(){
-  var h=renderHeader("Temperature Log","\uD83C\uDF21\uFE0F Storage Monitoring");
+  var h=renderHeader("Temperature Log","\uD83C\uDF21\uFE0F HACCP Compliance Monitoring");
   h+='<div style="max-width:540px;margin:0 auto;padding:20px">';
-  h+='<div style="font-size:13px;font-weight:700;margin-bottom:12px">Record Current Temperatures</div>';
+  h+='<div style="font-size:13px;font-weight:700;margin-bottom:12px">Log Current Readings</div>';
   for(var i=0;i<STORAGES.length;i++){var s=STORAGES[i];
     var lastTemp="";
     for(var t=tempLog.length-1;t>=0;t--){if(tempLog[t].loc===s.id){lastTemp=tempLog[t].temp;break;}}
@@ -4493,7 +4783,7 @@ function renderTempLog(){
     h+='<span style="font-size:12px;color:#8b949e">\u00B0C</span>';
     h+='</div>';
   }
-  h+='<button class="confirm-btn blue" style="margin-top:10px" onclick="saveTempLog()">\uD83C\uDF21\uFE0F Save Temperature Reading</button>';
+  h+='<button class="confirm-btn blue" style="margin-top:10px" onclick="saveTempLog()">\uD83C\uDF21\uFE0F Log Temperature Reading</button>';
   // History
   if(tempLog.length>0){
     h+='<div style="font-size:12px;font-weight:700;color:#8b949e;margin:20px 0 8px;text-transform:uppercase;letter-spacing:0.05em">Recent Readings</div>';
@@ -4517,6 +4807,45 @@ function renderTempLog(){
   }
   h+='</div>';
   return h;
+}
+// ========== USER SELECT ==========
+function renderUserSelect(){
+  var h='<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px">';
+  h+='<div style="max-width:400px;width:100%;text-align:center">';
+  h+='<div style="font-size:48px;margin-bottom:12px">\uD83D\uDC64</div>';
+  h+='<div style="font-size:20px;font-weight:800;margin-bottom:4px">Who\'s Working?</div>';
+  h+='<div style="font-size:12px;color:#8b949e;margin-bottom:24px">Select your name to continue</div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  for(var i=0;i<employees.length;i++){
+    var isCurrent=currentUser===employees[i];
+    h+='<button style="padding:16px 12px;border-radius:14px;border:1px solid '+(isCurrent?'rgba(88,166,255,0.4)':'rgba(255,255,255,0.08)')+';background:'+(isCurrent?'rgba(88,166,255,0.1)':'rgba(255,255,255,0.03)')+';color:'+(isCurrent?'#58a6ff':'#e6edf3')+';font-size:14px;font-weight:600;cursor:pointer;transition:all 0.15s" onclick="selectUser(\''+employees[i].replace(/'/g,"\\'")+'\')">';
+    h+=(isCurrent?'\u2705 ':'\uD83D\uDC64 ')+employees[i]+'</button>';
+  }
+  h+='</div>';
+  if(currentUser) h+='<button style="margin-top:16px;padding:10px 24px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);color:#8b949e;font-size:12px;font-weight:600;cursor:pointer" onclick="screen=\'main\';render()">Continue as '+currentUser+' \u2192</button>';
+  h+='</div></div>';
+  return h;
+}
+function selectUser(name){
+  currentUser=name;
+  try{localStorage.setItem("invCurrentUser",name);}catch(e){}
+  screen="main";render();
+}
+function addEmployee(){
+  var el=document.getElementById("new-emp");if(!el||!el.value.trim())return;
+  var name=el.value.trim();
+  if(employees.indexOf(name)!==-1){alert("Employee already exists");return;}
+  employees.push(name);
+  try{localStorage.setItem("invEmployees",JSON.stringify(employees));}catch(e){}
+  render();
+}
+function removeEmployee(idx){
+  var name=employees[idx];
+  if(!confirm("Remove employee '"+name+"'?"))return;
+  employees.splice(idx,1);
+  if(currentUser===name){currentUser="";try{localStorage.setItem("invCurrentUser","");}catch(e){}}
+  try{localStorage.setItem("invEmployees",JSON.stringify(employees));}catch(e){}
+  render();
 }
 function saveTempLog(){
   var saved=false;var t=now();
@@ -4568,7 +4897,7 @@ function renderVariance(){
     wasteReasons[txLog[t].reason]++;
   }}
   if(Object.keys(wasteReasons).length>0){
-    h+='<div style="font-size:12px;font-weight:700;color:#8b949e;margin-bottom:6px;text-transform:uppercase">\uD83D\uDDD1 Stock Out Reasons</div>';
+    h+='<div style="font-size:12px;font-weight:700;color:#8b949e;margin-bottom:6px;text-transform:uppercase">\uD83D\uDDD1 Issue Reasons Breakdown</div>';
     h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">';
     for(var r in wasteReasons){
       var rColor=r==="waste"||r==="spoiled"?"#f85149":"#58a6ff";
@@ -4593,7 +4922,7 @@ function renderVariance(){
     }
     h+='</tbody></table></div>';
   } else {
-    h+='<div style="text-align:center;padding:30px;color:#484f58;font-size:13px">No transaction data yet. Start tracking Stock In/Out to see variance analysis.</div>';
+    h+='<div style="text-align:center;padding:30px;color:#484f58;font-size:13px">No transaction data available. Begin processing Goods Receipts and Issues to generate variance analysis.</div>';
   }
   return h;
 }
